@@ -92,11 +92,23 @@ export const dbService = {
     },
 
     async getSavedSongId(userId: string, url: string) {
+        const song = await this.getSavedSong(userId, url);
+        return song ? song.id : null;
+    },
+
+    async getSavedSong(userId: string, url: string): Promise<SavedSong | null> {
         const songsRef = collection(db!, 'saved_songs');
-        // This query might need an index if we query by url + userId often
         const q = query(songsRef, where("userId", "==", userId), where("url", "==", url));
         const snapshot = await getDocs(q);
         if (snapshot.empty) return null;
-        return snapshot.docs[0].id;
+
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+        // Migration / Compatibility logic if needed (similar to getUserSongs)
+        let folderIds = data.folderIds || [];
+        if (!data.folderIds && data.folderId) {
+            folderIds = [data.folderId];
+        }
+        return { id: doc.id, ...data, folderIds } as SavedSong;
     }
 };

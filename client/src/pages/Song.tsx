@@ -48,9 +48,18 @@ export default function Song() {
         if (!user || !url) return;
         try {
             const { dbService } = await import('../services/db');
-            const id = await dbService.getSavedSongId(user.uid, url);
-            setSavedSongId(id);
-            setIsSaved(!!id);
+            const song = await dbService.getSavedSong(user.uid, url);
+            if (song) {
+                setSavedSongId(song.id);
+                setIsSaved(true);
+                // Apply saved transposition
+                if (typeof song.transpose === 'number') {
+                    setSemitones(song.transpose);
+                }
+            } else {
+                setSavedSongId(null);
+                setIsSaved(false);
+            }
         } catch (e) {
             console.error("Failed to check saved status", e);
         }
