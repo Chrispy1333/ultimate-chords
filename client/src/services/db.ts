@@ -22,7 +22,7 @@ export interface Folder {
 export interface SavedSong {
     id: string;
     userId: string;
-    folderId: string | null; // null means "Uncategorized" or root
+    folderIds: string[]; // Replaces folderId. Empty array means "All Songs" only.
     title: string;
     artist: string;
     url: string;
@@ -50,8 +50,9 @@ export const dbService = {
     },
 
     async deleteFolder(folderId: string) {
-        // Note: This does not delete songs inside yet. 
-        // Ideally we would verify emptiness or batch delete songs.
+        // Just delete the folder. Songs remain but won't have this folder in their list anymore (if we processed it).
+        // For MVP, we just delete the folder doc.
+        // Frontend will filter out IDs that don't match existing folders.
         await deleteDoc(doc(db!, 'folders', folderId));
     },
 
@@ -66,16 +67,24 @@ export const dbService = {
         return docRef.id;
     },
 
-    async updateSongFolder(songId: string, folderId: string | null) {
+    async updateSongFolders(songId: string, folderIds: string[]) {
         const songRef = doc(db!, 'saved_songs', songId);
-        await updateDoc(songRef, { folderId });
+        await updateDoc(songRef, { folderIds });
     },
 
     async getUserSongs(userId: string) {
         const songsRef = collection(db!, 'saved_songs');
         const q = query(songsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedSong));
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            // Migration / Compatibility
+            let folderIds = data.folderIds || [];
+            if (!data.folderIds && data.folderId) {
+                folderIds = [data.folderId];
+            }
+            return { id: doc.id, ...data, folderIds } as SavedSong;
+        });
     },
 
     async deleteSong(songId: string) {
@@ -84,6 +93,7 @@ export const dbService = {
 
     async getSavedSongId(userId: string, url: string) {
         const songsRef = collection(db!, 'saved_songs');
+        // This query might need an index if we query by url + userId often
         const q = query(songsRef, where("userId", "==", userId), where("url", "==", url));
         const snapshot = await getDocs(q);
         if (snapshot.empty) return null;

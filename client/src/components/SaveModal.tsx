@@ -18,7 +18,7 @@ interface SaveModalProps {
 export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps) {
     const { user } = useAuth();
     const [folders, setFolders] = useState<Folder[]>([]);
-    const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+    const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([]);
     const [newFolderName, setNewFolderName] = useState('');
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -44,12 +44,21 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
         try {
             const newFolder = await dbService.createFolder(user.uid, newFolderName);
             setFolders([newFolder as Folder, ...folders]);
-            setSelectedFolderId(newFolder.id);
+            // Auto-select the new folder
+            setSelectedFolderIds(prev => [...prev, newFolder.id]);
             setNewFolderName('');
             setIsCreatingFolder(false);
         } catch (error) {
             console.error("Failed to create folder", error);
         }
+    };
+
+    const toggleFolder = (folderId: string) => {
+        setSelectedFolderIds(prev =>
+            prev.includes(folderId)
+                ? prev.filter(id => id !== folderId)
+                : [...prev, folderId]
+        );
     };
 
     const handleSave = async () => {
@@ -60,10 +69,10 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
                 title: songData.title,
                 artist: songData.artist,
                 url: songData.url,
-                transpose: songData.transpose, // Ensure transpose is saved!
-                folderId: selectedFolderId
+                transpose: songData.transpose,
+                folderIds: selectedFolderIds
             });
-            onClose(); // Close first to maximize responsiveness
+            onClose();
             onSave?.(id);
         } catch (error) {
             console.error("Failed to save song", error);
@@ -92,7 +101,7 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
 
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Select Folder</span>
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Select Folders</span>
                             <button
                                 onClick={() => setIsCreatingFolder(!isCreatingFolder)}
                                 className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
@@ -123,32 +132,27 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
                         )}
 
                         <div className="max-h-48 overflow-y-auto space-y-1">
-                            <button
-                                onClick={() => setSelectedFolderId(null)}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between
-                                    ${selectedFolderId === null
-                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
-                                        : 'hover:bg-neutral-800 text-gray-300'
-                                    }`}
-                            >
-                                <span>Uncategorized</span>
-                                {selectedFolderId === null && <Check size={14} />}
-                            </button>
+                            {folders.length === 0 && (
+                                <p className="text-sm text-gray-500 text-center py-4">No folders created yet.</p>
+                            )}
 
-                            {folders.map(folder => (
-                                <button
-                                    key={folder.id}
-                                    onClick={() => setSelectedFolderId(folder.id)}
-                                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between
-                                        ${selectedFolderId === folder.id
-                                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
-                                            : 'hover:bg-neutral-800 text-gray-300'
-                                        }`}
-                                >
-                                    <span>{folder.name}</span>
-                                    {selectedFolderId === folder.id && <Check size={14} />}
-                                </button>
-                            ))}
+                            {folders.map(folder => {
+                                const isSelected = selectedFolderIds.includes(folder.id);
+                                return (
+                                    <button
+                                        key={folder.id}
+                                        onClick={() => toggleFolder(folder.id)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between
+                                            ${isSelected
+                                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/50'
+                                                : 'hover:bg-neutral-800 text-gray-300 border border-transparent'
+                                            }`}
+                                    >
+                                        <span>{folder.name}</span>
+                                        {isSelected && <Check size={14} />}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
