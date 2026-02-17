@@ -1,23 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { dbService, type Folder, type SavedSong } from '../services/db';
-import { Folder as FolderIcon, Music, Trash2, Calendar, FolderOpen, MoreVertical, Plus, Check, X, ArrowRight } from 'lucide-react';
+import { dbService, type SavedSong, type Folder } from '../services/db';
 import { Link } from 'react-router-dom';
+import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X, Music } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Library() {
     const { user } = useAuth();
-    const [folders, setFolders] = useState<Folder[]>([]);
     const [songs, setSongs] = useState<SavedSong[]>([]);
+    const [folders, setFolders] = useState<Folder[]>([]);
+    const [activeFolderId, setActiveFolderId] = useState<string | null>(null); // null = All Songs
     const [loading, setLoading] = useState(true);
-    const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    // Folder creation state
+    // Folder creation
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
 
-    // Song action state
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [moveSongId, setMoveSongId] = useState<string | null>(null); // Song being moved
+    // Context Menu
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, songId: string } | null>(null);
+    const [showAddToFolderModal, setShowAddToFolderModal] = useState<string | null>(null); // songId
 
     useEffect(() => {
         if (user) {
@@ -25,16 +27,23 @@ export default function Library() {
         }
     }, [user]);
 
+    // Click outside to close context menu
+    useEffect(() => {
+        const handleClick = () => setContextMenu(null);
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    }, []);
+
     const loadLibrary = async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const [fetchedFolders, fetchedSongs] = await Promise.all([
-                dbService.getUserFolders(user.uid),
-                dbService.getUserSongs(user.uid)
+            const [songsData, foldersData] = await Promise.all([
+                dbService.getUserSongs(user.uid),
+                dbService.getUserFolders(user.uid)
             ]);
-            setFolders(fetchedFolders);
-            setSongs(fetchedSongs);
+            setSongs(songsData);
+            setFolders(foldersData);
         } catch (error) {
             console.error("Failed to load library", error);
         } finally {
@@ -54,283 +63,305 @@ export default function Library() {
         }
     };
 
-    const handleMoveSong = async (songId: string, folderId: string | null) => {
+    const handleDeleteSong = async (songId: string) => {
+        if (!confirm("Are you sure you want to remove this song from your library?")) return;
         try {
-            await dbService.updateSongFolder(songId, folderId);
-            setSongs(songs.map(s => s.id === songId ? { ...s, folderId } : s));
-            setMoveSongId(null);
-        } catch (error) {
-            console.error("Failed to move song", error);
-        }
-    };
-
-    const handleDeleteSong = async (e: React.MouseEvent, id: string) => {
-        e.preventDefault(); // Prevent navigation
-        e.stopPropagation();
-        if (!confirm("Delete this song?")) return;
-        try {
-            await dbService.deleteSong(id);
-            setSongs(songs.filter(s => s.id !== id));
+            await dbService.deleteSong(songId);
+            setSongs(songs.filter(s => s.id !== songId));
         } catch (error) {
             console.error("Failed to delete song", error);
         }
     };
 
-    const handleDeleteFolder = async (e: React.MouseEvent, id: string, name: string) => {
-        e.stopPropagation();
-        if (!confirm(`Delete folder "${name}"? Songs inside will be moved to Uncategorized.`)) return;
-
-        // Note: Real app should maybe move songs to null folderId or delete them.
-        // For now, we just delete the folder doc. The songs will still have the folderId but it won't match any folder.
-        // Better approach: Update songs to have folderId: null
-        // But for MVP, let's just delete the folder.
-
+    const handleDeleteFolder = async (folderId: string) => {
+        if (!confirm("Delete this folder? Songs will remain in 'All Songs'.")) return;
         try {
-            await dbService.deleteFolder(id);
-            setFolders(folders.filter(f => f.id !== id));
-            if (activeFolderId === id) setActiveFolderId(null);
+            await dbService.deleteFolder(folderId);
+            setFolders(folders.filter(f => f.id !== folderId));
+            if (activeFolderId === folderId) setActiveFolderId(null);
         } catch (error) {
             console.error("Failed to delete folder", error);
         }
     };
 
-    // Filter songs based on active folder
-    const filteredSongs = activeFolderId
-        ? songs.filter(s => s.folderId === activeFolderId)
-        : songs.filter(s => !s.folderId || !folders.find(f => f.id === s.folderId));
-    // Show uncategorized OR songs belonging to deleted folders in "Uncategorized" view (null activeFolderId)
+    // Filter Logic
+    const filteredSongs = songs.filter(song => {
+        // Search Filter
+        const matchesSearch = (song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            song.artist.toLowerCase().includes(searchTerm.toLowerCase()));
+        if (!matchesSearch) return false;
 
-    if (loading) {
-        return <div className="p-20 text-center text-gray-500">Loading library...</div>;
-    }
-
-    if (!user) {
-        return <div className="p-20 text-center text-gray-500">Please sign in to view your library.</div>;
-    }
+        // Folder Filter
+        if (activeFolderId === null) {
+            // "All Songs" - show everything
+            return true;
+        } else {
+            // Specific Folder
+            return song.folderIds && song.folderIds.includes(activeFolderId);
+        }
+    });
 
     return (
-        <div className="min-h-screen bg-[#050505]">
-            {/* Navbar */}
-            <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-xl border-b border-neutral-800 px-6 py-4">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <Link to="/" className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 hover:opacity-80 transition-opacity">
-                        Ultimate Chords
-                    </Link>
-                </div>
-            </div>
+        <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row gap-8">
+                {/* Sidebar / Top bar on mobile */}
+                <div className="w-full md:w-64 flex-shrink-0 space-y-6">
+                    <div>
+                        <h1 className="text-3xl font-bold text-white mb-2">My Library</h1>
+                        <p className="text-gray-400 text-sm">Organize your collection</p>
+                    </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                <h1 className="text-3xl font-bold mb-8 text-white">
-                    Your Library
-                </h1>
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="Search songs..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+                        />
+                    </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                    {/* Sidebar / Folder List */}
-                    <div className="lg:col-span-1 space-y-2">
-                        <div className="flex items-center justify-between px-2 mb-4">
-                            <h3 className="text-gray-400 font-medium text-sm uppercase tracking-wider">Folders</h3>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Folders</h2>
                             <button
                                 onClick={() => setIsCreatingFolder(!isCreatingFolder)}
-                                className="text-gray-400 hover:text-white p-1 hover:bg-neutral-800 rounded transition-colors"
+                                className="text-purple-400 hover:text-purple-300 transition-colors"
                             >
-                                <Plus size={16} />
+                                <FolderPlus size={18} />
                             </button>
                         </div>
 
                         {isCreatingFolder && (
-                            <div className="flex gap-2 max-w-full px-2 mb-2">
+                            <div className="flex gap-2 mb-2">
                                 <input
                                     type="text"
                                     value={newFolderName}
                                     onChange={(e) => setNewFolderName(e.target.value)}
-                                    placeholder="Name"
-                                    className="flex-1 w-full bg-neutral-800 border border-neutral-700 rounded-md px-2 py-1 text-sm text-white focus:outline-none focus:border-purple-500"
+                                    placeholder="Name..."
+                                    className="w-full bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-sm text-white focus:outline-none"
                                     autoFocus
-                                    onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
                                 />
-                                <button
-                                    onClick={handleCreateFolder}
-                                    disabled={!newFolderName.trim()}
-                                    className="text-purple-400 hover:text-purple-300 disabled:opacity-50"
-                                >
-                                    <Check size={16} />
-                                </button>
-                                <button
-                                    onClick={() => setIsCreatingFolder(false)}
-                                    className="text-gray-500 hover:text-gray-400"
-                                >
-                                    <X size={16} />
-                                </button>
+                                <button onClick={handleCreateFolder} className="text-xs bg-purple-600 px-2 rounded text-white">Add</button>
                             </div>
                         )}
 
-                        <button
-                            onClick={() => setActiveFolderId(null)}
-                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-colors
-                            ${activeFolderId === null
-                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                    : 'hover:bg-neutral-900 text-gray-400 hover:text-white'
-                                }`}
-                        >
-                            <FolderOpen size={18} />
-                            <span className="font-medium">Uncategorized</span>
-                            <span className="ml-auto text-xs opacity-50 bg-neutral-800 px-2 py-0.5 rounded-full">
-                                {songs.filter(s => !s.folderId || !folders.find(f => f.id === s.folderId)).length}
-                            </span>
-                        </button>
-
-                        {folders.map(folder => (
+                        <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
                             <button
-                                key={folder.id}
-                                onClick={() => setActiveFolderId(folder.id)}
-                                className={`w-full group text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-colors
-                                ${activeFolderId === folder.id
-                                        ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                        : 'hover:bg-neutral-900 text-gray-400 hover:text-white'
+                                onClick={() => setActiveFolderId(null)}
+                                className={`flex-shrink-0 w-full text-left px-4 py-2 rounded-xl text-sm transition-colors
+                                    ${activeFolderId === null
+                                        ? 'bg-purple-600 text-white'
+                                        : 'bg-neutral-900 text-gray-400 hover:bg-neutral-800'
                                     }`}
                             >
-                                <FolderIcon size={18} />
-                                <span className="font-medium truncate">{folder.name}</span>
-                                <span className="ml-auto text-xs opacity-50 bg-neutral-800 px-2 py-0.5 rounded-full">
-                                    {songs.filter(s => s.folderId === folder.id).length}
-                                </span>
-                                <div
-                                    onClick={(e) => handleDeleteFolder(e, folder.id, folder.name)}
-                                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity"
-                                    title="Delete Folder"
-                                >
-                                    <Trash2 size={14} />
-                                </div>
+                                All Songs
                             </button>
-                        ))}
 
-                        {folders.length === 0 && (
-                            <div className="px-4 py-8 text-center text-sm text-gray-600 border border-dashed border-neutral-800 rounded-xl">
-                                No folders yet.
-                                <br />
-                                Create one when saving a song!
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Song List */}
-                    <div className="lg:col-span-3">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredSongs.map(song => (
-                                <Link
-                                    key={song.id}
-                                    to={`/song?url=${encodeURIComponent(song.url)}`}
-                                    state={{ title: song.title, artist: song.artist }}
-                                    className="group block bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 hover:bg-neutral-800 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/5 hover:-translate-y-1 transition-all"
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="p-2 bg-neutral-900 rounded-lg group-hover:bg-purple-500/20 group-hover:text-purple-300 transition-colors">
-                                            <Music size={20} />
-                                        </div>
-                                        <div className="relative">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    setOpenMenuId(openMenuId === song.id ? null : song.id);
-                                                }}
-                                                className="text-gray-600 hover:text-white transition-colors p-1 rounded-md hover:bg-neutral-800"
-                                            >
-                                                <MoreVertical size={16} />
-                                            </button>
-
-                                            {openMenuId === song.id && (
-                                                <div className="absolute right-0 top-full mt-1 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-xl z-20 overflow-hidden">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            setMoveSongId(song.id);
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-2"
-                                                    >
-                                                        <ArrowRight size={14} />
-                                                        Move to Folder
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            handleDeleteSong(e, song.id);
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <h3 className="font-bold text-lg text-white mb-1 truncate">{song.title || 'Unknown Title'}</h3>
-                                    <p className="text-gray-400 text-sm mb-4 truncate">{song.artist || 'Unknown Artist'}</p>
-
-                                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                                        {song.transpose !== 0 && (
-                                            <span className="px-2 py-1 rounded bg-neutral-900 border border-neutral-700 font-mono text-purple-400">
-                                                {song.transpose > 0 ? `+${song.transpose}` : song.transpose}
-                                            </span>
-                                        )}
-                                        <div className="flex items-center gap-1 ml-auto">
-                                            <Calendar size={12} />
-                                            <span>
-                                                {song.createdAt?.seconds
-                                                    ? new Date(song.createdAt.seconds * 1000).toLocaleDateString()
-                                                    : 'Just now'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-
-                            {filteredSongs.length === 0 && (
-                                <div className="col-span-full py-20 text-center text-gray-500 border border-dashed border-neutral-800 rounded-2xl">
-                                    <Music size={48} className="mx-auto mb-4 opacity-20" />
-                                    <p>No songs found in this folder.</p>
-                                    <Link to="/" className="text-purple-400 hover:underline mt-2 inline-block">
-                                        Search for songs
-                                    </Link>
+                            {folders.map(folder => (
+                                <div key={folder.id} className="group relative flex-shrink-0">
+                                    <button
+                                        onClick={() => setActiveFolderId(folder.id)}
+                                        className={`w-full text-left px-4 py-2 rounded-xl text-sm transition-colors pr-8 truncate
+                                            ${activeFolderId === folder.id
+                                                ? 'bg-purple-600 text-white'
+                                                : 'bg-neutral-900 text-gray-400 hover:bg-neutral-800'
+                                            }`}
+                                    >
+                                        {folder.name}
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
-                            )}
+                            ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Move Song Modal */}
-                {moveSongId && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setMoveSongId(null)}>
-                        <div className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-neutral-800">
-                                <h3 className="font-bold text-white">Move to Folder</h3>
+                {/* Main Content */}
+                <div className="flex-1">
+                    {loading ? (
+                        <div className="text-center py-20 text-gray-500">Loading your library...</div>
+                    ) : filteredSongs.length === 0 ? (
+                        <div className="text-center py-20">
+                            <div className="inline-block p-4 rounded-full bg-neutral-900 mb-4">
+                                <FolderPlus className="w-8 h-8 text-gray-600" />
                             </div>
-                            <div className="max-h-[60vh] overflow-y-auto p-2">
-                                <button
-                                    onClick={() => handleMoveSong(moveSongId, null)}
-                                    className="w-full text-left px-4 py-3 rounded-xl hover:bg-neutral-800 text-gray-300 flex items-center gap-3"
-                                >
-                                    <FolderOpen size={18} />
-                                    Uncategorized
-                                </button>
-                                {folders.map(folder => (
-                                    <button
-                                        key={folder.id}
-                                        onClick={() => handleMoveSong(moveSongId, folder.id)}
-                                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-neutral-800 text-gray-300 flex items-center gap-3"
-                                    >
-                                        <FolderIcon size={18} />
-                                        {folder.name}
-                                    </button>
-                                ))}
-                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">No songs found</h3>
+                            <p className="text-gray-400">
+                                {searchTerm ? "No songs match your search." : "Start saving songs to build your collection!"}
+                            </p>
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredSongs.map(song => (
+                                <div key={song.id} className="relative group bg-neutral-900 border border-neutral-800 rounded-xl p-4 hover:border-purple-500/50 transition-colors">
+                                    <Link to={`/tab?url=${encodeURIComponent(song.url)}`} className="block">
+                                        <h3 className="font-bold text-white truncate mb-1 pr-6">{song.title}</h3>
+                                        <p className="text-sm text-gray-400 truncate mb-3">{song.artist}</p>
+
+                                        {/* Tags */}
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {song.folderIds && song.folderIds.map(fid => {
+                                                const folder = folders.find(f => f.id === fid);
+                                                if (!folder) return null;
+                                                return (
+                                                    <span key={fid} className="text-[10px] px-2 py-0.5 rounded-full bg-neutral-800 text-gray-400 border border-neutral-700">
+                                                        {folder.name}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </Link>
+
+                                    <div className="absolute top-4 right-4">
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setContextMenu({ x: e.clientX, y: e.clientY, songId: song.id });
+                                            }}
+                                            className="text-gray-500 hover:text-white transition-colors"
+                                        >
+                                            <MoreVertical size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
+
+            {/* Context Menu */}
+            <AnimatePresence>
+                {contextMenu && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="fixed z-50 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden min-w-[160px]"
+                        style={{ top: contextMenu.y, left: contextMenu.x }}
+                    >
+                        <button
+                            onClick={() => {
+                                setShowAddToFolderModal(contextMenu.songId);
+                                setContextMenu(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-white hover:bg-neutral-800 flex items-center gap-2"
+                        >
+                            <FolderInput size={16} className="text-purple-400" />
+                            Add to Folder
+                        </button>
+                        <button
+                            onClick={() => {
+                                handleDeleteSong(contextMenu.songId);
+                                setContextMenu(null);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-neutral-800 flex items-center gap-2"
+                        >
+                            <Trash2 size={16} />
+                            Remove Song
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Add to Folder Modal */}
+            <AnimatePresence>
+                {showAddToFolderModal && (
+                    <AddToFolderModal
+                        folders={folders}
+                        songId={showAddToFolderModal}
+                        existingFolderIds={songs.find(s => s.id === showAddToFolderModal)?.folderIds || []}
+                        onClose={() => setShowAddToFolderModal(null)}
+                        onUpdate={(newFolderIds) => {
+                            setSongs(songs.map(s => s.id === showAddToFolderModal ? { ...s, folderIds: newFolderIds } : s));
+                            setShowAddToFolderModal(null);
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+// Helper Component for the Modal
+function AddToFolderModal({ folders, songId, existingFolderIds, onClose, onUpdate }: {
+    folders: Folder[],
+    songId: string,
+    existingFolderIds: string[],
+    onClose: () => void,
+    onUpdate: (ids: string[]) => void
+}) {
+    const [selectedIds, setSelectedIds] = useState<string[]>(existingFolderIds);
+    const [saving, setSaving] = useState(false);
+
+    const toggleFolder = (folderId: string) => {
+        setSelectedIds(prev =>
+            prev.includes(folderId)
+                ? prev.filter(id => id !== folderId)
+                : [...prev, folderId]
+        );
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await dbService.updateSongFolders(songId, selectedIds);
+            onUpdate(selectedIds);
+        } catch (error) {
+            console.error("Failed to update folders", error);
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden"
+            >
+                <div className="p-4 border-b border-neutral-800 flex justify-between items-center">
+                    <h3 className="font-bold text-white">Add to Folders</h3>
+                    <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
+                </div>
+                <div className="p-4 max-h-60 overflow-y-auto space-y-1">
+                    {folders.length === 0 && <p className="text-gray-500 text-center py-4">No folders created.</p>}
+                    {folders.map(folder => {
+                        const isSelected = selectedIds.includes(folder.id);
+                        return (
+                            <button
+                                key={folder.id}
+                                onClick={() => toggleFolder(folder.id)}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex justify-between items-center transition-colors
+                                    ${isSelected ? 'bg-purple-500/20 text-purple-300' : 'hover:bg-neutral-800 text-gray-300'}`}
+                            >
+                                <span>{folder.name}</span>
+                                {isSelected && <Check size={14} className="text-purple-400" />}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="p-4 border-t border-neutral-800 flex justify-end gap-2">
+                    <button onClick={onClose} className="px-3 py-1.5 text-sm text-gray-400 hover:text-white">Cancel</button>
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="px-4 py-1.5 text-sm bg-white text-black rounded-lg font-medium hover:bg-gray-200"
+                    >
+                        {saving ? 'Saving...' : 'Save'}
+                    </button>
+                </div>
+            </motion.div>
         </div>
     );
 }
