@@ -202,7 +202,7 @@ export default function Library() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {filteredSongs.map(song => (
                                 <div key={song.id} className="relative group bg-neutral-900 border border-neutral-800 rounded-xl p-4 hover:border-purple-500/50 transition-colors">
-                                    <Link to={`/tab?url=${encodeURIComponent(song.url)}`} className="block">
+                                    <Link to={`/song?url=${encodeURIComponent(song.url)}`} className="block">
                                         <h3 className="font-bold text-white truncate mb-1 pr-6">{song.title}</h3>
                                         <p className="text-sm text-gray-400 truncate mb-3">{song.artist}</p>
 
