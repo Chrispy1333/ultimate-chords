@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { dbService, type SavedSong, type Folder } from '../services/db';
 import { Link } from 'react-router-dom';
-import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X, Music } from 'lucide-react';
+import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Library() {
