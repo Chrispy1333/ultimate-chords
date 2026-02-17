@@ -148,10 +148,10 @@ export default function Library() {
                             </div>
                         )}
 
-                        <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
+                        <div className="flex flex-wrap md:flex-col gap-2 pb-2 md:pb-0">
                             <button
                                 onClick={() => setActiveFolderId(null)}
-                                className={`flex-shrink-0 w-full text-left px-4 py-2 rounded-xl text-sm transition-colors
+                                className={`w-auto md:w-full text-left px-4 py-2 rounded-xl text-sm transition-colors
                                     ${activeFolderId === null
                                         ? 'bg-purple-600 text-white'
                                         : 'bg-neutral-900 text-gray-400 hover:bg-neutral-800'
@@ -161,7 +161,7 @@ export default function Library() {
                             </button>
 
                             {folders.map(folder => (
-                                <div key={folder.id} className="group relative flex-shrink-0">
+                                <div key={folder.id} className="group relative w-auto md:w-full">
                                     <button
                                         onClick={() => setActiveFolderId(folder.id)}
                                         className={`w-full text-left px-4 py-2 rounded-xl text-sm transition-colors pr-8 truncate
@@ -174,7 +174,7 @@ export default function Library() {
                                     </button>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity p-1"
                                     >
                                         <Trash2 size={14} />
                                     </button>
