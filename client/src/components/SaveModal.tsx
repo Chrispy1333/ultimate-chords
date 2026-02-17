@@ -21,7 +21,6 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
     const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
     const [newFolderName, setNewFolderName] = useState('');
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
@@ -32,14 +31,11 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
 
     const loadFolders = async () => {
         if (!user) return;
-        setLoading(true);
         try {
             const data = await dbService.getUserFolders(user.uid);
             setFolders(data);
         } catch (error) {
             console.error("Failed to load folders", error);
-        } finally {
-            setLoading(false);
         }
     };
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { dbService, type Folder, type SavedSong } from '../services/db';
 import { Folder as FolderIcon, Music, Trash2, Calendar, FolderOpen, MoreVertical, Plus, Check, X, ArrowRight } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export default function Library() {
     const { user } = useAuth();
@@ -10,7 +10,6 @@ export default function Library() {
     const [songs, setSongs] = useState<SavedSong[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-    const navigate = useNavigate();
 
     // Folder creation state
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
