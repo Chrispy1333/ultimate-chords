@@ -1,14 +1,15 @@
-from server import app
-from flask import request, jsonify
+from flask import Blueprint, request, jsonify
 from .scraper import Scraper
 
+# Create Blueprint
+api = Blueprint('api', __name__)
 scraper = Scraper()
 
-@app.route('/')
+@api.route('/')
 def index():
     return 'Ultimate Chords API'
 
-@app.route('/search')
+@api.route('/search')
 def search():
     query = request.args.get('q')
     if not query:
@@ -17,7 +18,7 @@ def search():
     results = scraper.search(query)
     return jsonify(results)
 
-@app.route('/tab')
+@api.route('/tab')
 def tab():
     url = request.args.get('url')
     if not url:
