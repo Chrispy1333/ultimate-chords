@@ -116,13 +116,15 @@ export default function Song() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleHeartClick}
-                            className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-purple-400"
-                            title={isSaved ? "Saved" : (user ? "Save to Library" : "Sign in to Save")}
-                        >
-                            <Heart className={`w-6 h-6 ${isSaved ? 'fill-purple-500 text-purple-500' : (user ? '' : 'opacity-50')}`} />
-                        </button>
+                        {user && (
+                            <button
+                                onClick={handleHeartClick}
+                                className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-purple-400"
+                                title={isSaved ? "Saved" : "Save to Library"}
+                            >
+                                <Heart className={`w-6 h-6 ${isSaved ? 'fill-purple-500 text-purple-500' : ''}`} />
+                            </button>
+                        )}
 
                         <div className="flex items-center gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
                             <button
