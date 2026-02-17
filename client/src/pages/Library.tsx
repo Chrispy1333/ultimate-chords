@@ -247,7 +247,11 @@ export default function Library() {
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="fixed z-50 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl overflow-hidden min-w-[160px]"
-                        style={{ top: contextMenu.y, left: contextMenu.x }}
+                        style={{
+                            top: contextMenu.y,
+                            left: contextMenu.x > window.innerWidth / 2 ? 'auto' : contextMenu.x,
+                            right: contextMenu.x > window.innerWidth / 2 ? window.innerWidth - contextMenu.x : 'auto',
+                        }}
                     >
                         <button
                             onClick={() => {
