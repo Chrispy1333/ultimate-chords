@@ -278,19 +278,19 @@ export default function Song() {
                     </div>
 
                     {/* Center: Title */}
-                    <div className="text-center flex-1 min-w-0 px-2 flex flex-col items-center">
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center flex flex-col items-center max-w-[50%]">
                         {isBroadcasting && (
                             <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-green-400 mb-0.5 animate-pulse">
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                                 Live Session Active
                             </div>
                         )}
-                        <h1 className="font-bold text-white truncate text-sm md:text-base">{data.song_name || state?.title}</h1>
-                        <p className="text-xs text-gray-400 truncate">{data.artist_name || state?.artist}</p>
+                        <h1 className="font-bold text-white truncate text-sm md:text-base w-full">{data.song_name || state?.title}</h1>
+                        <p className="text-xs text-gray-400 truncate w-full">{data.artist_name || state?.artist}</p>
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
                         {/* Desktop Library Link */}
                         {user && (
                             <Link to="/library" className="hidden lg:flex items-center gap-2 text-gray-400 hover:text-white px-2 py-1 transition-colors text-sm font-medium">
@@ -316,10 +316,10 @@ export default function Song() {
                             </button>
                         )}
 
-                        {/* Use Flats Toggle */}
+                        {/* Use Flats Toggle - Desktop Only */}
                         <button
                             onClick={() => setUseFlats(!useFlats)}
-                            className={`h-9 w-9 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
+                            className={`hidden md:flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
                                 ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
                                 : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
                                 }`}
@@ -328,7 +328,8 @@ export default function Song() {
                             b
                         </button>
 
-                        <div className="flex items-center gap-1 md:gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+                        {/* Transpose Controls - Desktop Only */}
+                        <div className="hidden md:flex items-center gap-1 md:gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
                             <button
                                 onClick={() => setSemitones(s => s - 1)}
                                 className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
@@ -346,9 +347,9 @@ export default function Song() {
                             </button>
                         </div>
 
-                        {/* Mobile Menu Button - Show on small screens OR if user is signed in (for logout) */}
+                        {/* Mobile Menu Button - Show on small screens */}
                         <button
-                            className="lg:hidden text-white p-2 rounded-full hover:bg-white/10 ml-1"
+                            className="md:hidden text-white p-2 rounded-full hover:bg-white/10 ml-1"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                         >
                             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -363,15 +364,54 @@ export default function Song() {
                             initial={{ opacity: 0, y: -20, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                            className="absolute top-full right-4 mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden lg:hidden"
+                            className="absolute top-full right-4 mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden md:hidden z-50 origin-top-right"
                         >
-                            <div className="flex flex-col py-2">
+                            <div className="flex flex-col p-4 gap-4">
+                                {/* Mobile Transpose Controls */}
+                                <div className="space-y-3 pb-4 border-b border-neutral-800">
+                                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Playback Settings</h3>
+
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-300">Transpose</span>
+                                        <div className="flex items-center gap-2 bg-neutral-800 rounded-lg p-1">
+                                            <button
+                                                onClick={() => setSemitones(s => s - 1)}
+                                                className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
+                                            >
+                                                <Minus className="w-4 h-4" />
+                                            </button>
+                                            <span className={`text-sm font-mono font-bold w-8 text-center ${semitones !== 0 ? 'text-purple-400' : 'text-gray-500'}`}>
+                                                {semitones > 0 ? `+${semitones}` : semitones}
+                                            </span>
+                                            <button
+                                                onClick={() => setSemitones(s => s + 1)}
+                                                className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-gray-300">Use Flats</span>
+                                        <button
+                                            onClick={() => setUseFlats(!useFlats)}
+                                            className={`h-8 w-8 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
+                                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+                                                : 'bg-neutral-800 text-gray-400 border-neutral-700 hover:text-white'
+                                                }`}
+                                        >
+                                            b
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {user ? (
-                                    <>
+                                    <div className="space-y-1">
                                         <Link
                                             to="/library"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className="px-4 py-3 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-3"
+                                            className="px-2 py-2 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-3 rounded-lg"
                                         >
                                             <Library size={16} className="text-purple-400" />
                                             My Library
@@ -381,17 +421,17 @@ export default function Song() {
                                                 handleLogout();
                                                 setIsMenuOpen(false);
                                             }}
-                                            className="px-4 py-3 text-sm text-gray-400 hover:bg-neutral-800 hover:text-white flex items-center gap-3 text-left w-full"
+                                            className="px-2 py-2 text-sm text-gray-400 hover:bg-neutral-800 hover:text-white flex items-center gap-3 text-left w-full rounded-lg"
                                         >
                                             <LogOut size={16} />
                                             Log Out
                                         </button>
-                                    </>
+                                    </div>
                                 ) : (
                                     <Link
                                         to="/login"
                                         onClick={() => setIsMenuOpen(false)}
-                                        className="px-4 py-3 text-sm text-white hover:bg-neutral-800"
+                                        className="block px-4 py-2 text-sm text-center bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         Sign In
                                     </Link>
