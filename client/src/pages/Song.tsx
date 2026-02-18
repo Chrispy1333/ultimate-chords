@@ -1,4 +1,3 @@
-```typescript
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ChevronLeft, Minus, Plus, Music, Heart, Menu, X, Library, LogOut } from 'lucide-react';
@@ -15,7 +14,7 @@ export default function Song() {
     const location = useLocation();
     const state = location.state as { title?: string; artist?: string } | null;
     const [url, setUrl] = useState(searchParams.get('url'));
-    const { user, signInWithGoogle, signOut } = useAuth(); // Get user to show save button
+    const { user, signInWithGoogle, logout } = useAuth(); // Get user to show save button
 
     const [data, setData] = useState<TabData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -133,7 +132,7 @@ export default function Song() {
 
     const handleLogout = async () => {
         try {
-            await signOut();
+            await logout();
             navigate('/');
         } catch (error) {
             console.error("Failed to sign out", error);
@@ -162,17 +161,17 @@ export default function Song() {
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-xl border-b border-neutral-800 px-4 py-3 shadow-2xl">
                 <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
-                    
+
                     {/* Left: Logo & Back */}
                     <div className="flex items-center gap-2 md:gap-4 shrink-0">
-                         {/* Logo */}
+                        {/* Logo */}
                         <Link to="/" className="flex items-center gap-2 group">
                             <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform">
                                 <span className="font-bold text-white text-lg">U</span>
                             </div>
                             <span className="font-bold text-lg text-white hidden xl:block">Ultimate Chords</span>
                         </Link>
-                        
+
                         <div className="h-6 w-px bg-white/10 hidden md:block"></div>
 
                         <button
@@ -198,13 +197,12 @@ export default function Song() {
                                 <span>Library</span>
                             </Link>
                         )}
-                        
+
                         {user && (
                             <button
                                 onClick={handleHeartClick}
-                                className={`p - 2 hover: bg - white / 10 rounded - full transition - colors ${
-    isSaved && !isModified ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'
-} `}
+                                className={`p-2 hover:bg-white/10 rounded-full transition-colors ${isSaved && !isModified ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'
+                                    }`}
                                 title={
                                     isSaved
                                         ? (isModified ? "Update Saved Settings" : "Saved")
@@ -212,7 +210,7 @@ export default function Song() {
                                 }
                             >
                                 <Heart
-                                    className={`w - 6 h - 6 ${ isSaved && !isModified ? 'fill-purple-500' : '' } `}
+                                    className={`w-6 h-6 ${isSaved && !isModified ? 'fill-purple-500' : ''}`}
                                 />
                             </button>
                         )}
@@ -220,11 +218,10 @@ export default function Song() {
                         {/* Use Flats Toggle */}
                         <button
                             onClick={() => setUseFlats(!useFlats)}
-                            className={`h - 9 w - 9 flex items - center justify - center rounded - lg border text - sm font - bold font - mono transition - colors ${
-    useFlats
-        ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
-        : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
-} `}
+                            className={`h-9 w-9 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
+                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+                                : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
+                                }`}
                             title="Use Flats"
                         >
                             b
@@ -237,8 +234,8 @@ export default function Song() {
                             >
                                 <Minus className="w-4 h-4" />
                             </button>
-                            <span className={`text - sm font - mono font - bold w - 6 md: w - 8 text - center ${ semitones !== 0 ? 'text-purple-400' : 'text-gray-500' } `}>
-                                {semitones > 0 ? `+ ${ semitones } ` : semitones}
+                            <span className={`text-sm font-mono font-bold w-6 md:w-8 text-center ${semitones !== 0 ? 'text-purple-400' : 'text-gray-500'}`}>
+                                {semitones > 0 ? `+${semitones}` : semitones}
                             </span>
                             <button
                                 onClick={() => setSemitones(s => s + 1)}
@@ -247,9 +244,9 @@ export default function Song() {
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
-                        
-                         {/* Mobile Menu Button - Show on small screens OR if user is signed in (for logout) */}
-                         <button 
+
+                        {/* Mobile Menu Button - Show on small screens OR if user is signed in (for logout) */}
+                        <button
                             className="lg:hidden text-white p-2 rounded-full hover:bg-white/10 ml-1"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                         >
@@ -270,15 +267,15 @@ export default function Song() {
                             <div className="flex flex-col py-2">
                                 {user ? (
                                     <>
-                                        <Link 
-                                            to="/library" 
+                                        <Link
+                                            to="/library"
                                             onClick={() => setIsMenuOpen(false)}
                                             className="px-4 py-3 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-3"
                                         >
                                             <Library size={16} className="text-purple-400" />
                                             My Library
                                         </Link>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 handleLogout();
                                                 setIsMenuOpen(false);
@@ -290,7 +287,7 @@ export default function Song() {
                                         </button>
                                     </>
                                 ) : (
-                                    <Link 
+                                    <Link
                                         to="/login"
                                         onClick={() => setIsMenuOpen(false)}
                                         className="px-4 py-3 text-sm text-white hover:bg-neutral-800"

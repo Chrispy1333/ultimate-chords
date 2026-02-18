@@ -10,13 +10,13 @@ interface NavbarProps {
 }
 
 export function Navbar({ className = '', transparent = false }: NavbarProps) {
-    const { user, signOut } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     const handleLogout = async () => {
         try {
-            await signOut();
+            await logout();
             navigate('/');
         } catch (error) {
             console.error("Failed to sign out", error);
