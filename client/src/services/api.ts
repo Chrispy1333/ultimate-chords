@@ -64,7 +64,10 @@ export const api = {
         if (cached) return cached;
 
         const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
-        if (!res.ok) throw new Error('Search failed');
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `Search failed: ${res.status}`);
+        }
         const data = await res.json();
         setCache(cacheKey, data);
         return data;
@@ -76,7 +79,10 @@ export const api = {
         if (cached) return cached;
 
         const res = await fetch(`${API_BASE}/tab?url=${encodeURIComponent(url)}`);
-        if (!res.ok) throw new Error('Failed to fetch tab');
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({}));
+            throw new Error(errorData.error || `Failed to fetch tab: ${res.status}`);
+        }
         const data = await res.json();
         setCache(cacheKey, data);
         return data;

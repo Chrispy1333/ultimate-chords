@@ -14,6 +14,8 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(!!queryParam);
 
+    const [error, setError] = useState('');
+
     // Sync input with URL param (e.g. on back button)
     useEffect(() => {
         setInputValue(queryParam);
@@ -22,17 +24,21 @@ export default function Home() {
         } else {
             setResults([]);
             setSearched(false);
+            setError('');
         }
     }, [queryParam]);
 
     const performSearch = async (q: string) => {
         setLoading(true);
         setSearched(true);
+        setError('');
         try {
             const data = await api.search(q);
             setResults(data);
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
+            setError(e.message || 'Search failed');
+            setResults([]);
         } finally {
             setLoading(false);
         }
@@ -62,13 +68,20 @@ export default function Home() {
                     onSearch={handleSearch}
                     loading={loading}
                 />
+
+                {error && (
+                    <div className="mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-xl text-red-200 text-sm">
+                        {error}
+                        {error.includes("Captcha") && <p className="mt-1 text-xs opacity-75">The server is currently blocked by Ultimate Guitar. Please try again later.</p>}
+                    </div>
+                )}
             </div>
 
             <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {results.map((res, i) => (
                     <SongCard key={i} result={res} />
                 ))}
-                {searched && !loading && results.length === 0 && (
+                {searched && !loading && !error && results.length === 0 && (
                     <div className="col-span-full text-center text-gray-500 py-10">
                         No results found.
                     </div>

@@ -56,8 +56,11 @@ class Scraper:
         encoded_query = urllib.parse.quote(query)
         # url = f"https://www.ultimate-guitar.com/explore?value={encoded_query}&type={type}"
         url = f"https://www.ultimate-guitar.com/search.php?value={encoded_query}&search_type=title"
-        data = self.fetch_data(url)
+        data, error = self.fetch_data(url)
         
+        if error:
+            return [], error
+            
         results = []
         if data:
             try:
@@ -100,16 +103,20 @@ class Scraper:
                         'version': res.get('version'),
                         'tab_access_type': res.get('tab_access_type')
                     })
-                return cleaned_results
+                return cleaned_results, None
             except Exception as e:
                 print(f"Error parsing search results: {e}")
+                return [], str(e)
         
-        return []
+        return [], "No data found"
 
     def get_tab(self, url):
-        data = self.fetch_data(url)
+        data, error = self.fetch_data(url)
+        if error:
+            return None, error
+            
         if not data:
-            return None
+            return None, "No data found"
             
         try:
             tab_view = data.get('tab_view', {})
@@ -124,7 +131,7 @@ class Scraper:
                 'key': meta.get('tonality_name'),
                 'capo': meta.get('capo'),
                 'url': url
-            }
+            }, None
         except Exception as e:
             print(f"Error parsing tab data: {e}")
-            return None
+            return None, str(e)

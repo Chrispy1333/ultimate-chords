@@ -15,7 +15,14 @@ def search():
     if not query:
         return jsonify({'error': 'Missing query parameter q'}), 400
         
-    results = scraper.search(query)
+    results, error = scraper.search(query)
+    
+    if error:
+        print(f"Search error for {query}: {error}")
+        # Return empty list but with error in headers or a specific error object?
+        # For now, to solve the mystery, let's return the error in the body if we can
+        return jsonify({'error': error, 'results': []}), 500
+        
     return jsonify(results)
 
 @api.route('/tab')
@@ -24,8 +31,13 @@ def tab():
     if not url:
         return jsonify({'error': 'Missing url parameter'}), 400
 
-    tab_data = scraper.get_tab(url)
+    tab_data, error = scraper.get_tab(url)
+    
+    if error:
+        print(f"Tab error for {url}: {error}")
+        return jsonify({'error': error}), 500
+        
     if not tab_data:
-        return jsonify({'error': 'Failed to fetch tab data'}), 500
+        return jsonify({'error': 'Failed to fetch tab data'}), 404
         
     return jsonify(tab_data)
