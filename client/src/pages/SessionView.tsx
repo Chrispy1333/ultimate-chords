@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { sessionService, type Session } from '../services/session';
 import { TabViewer } from '../components/TabViewer';
 import { useTranspose } from '../hooks/useTranspose';
-import { Music } from 'lucide-react';
+import { Music, LogOut } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 export default function SessionView() {
     const { sessionId } = useParams<{ sessionId: string }>();
+    const navigate = useNavigate();
     const [session, setSession] = useState<Session | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
@@ -87,11 +88,20 @@ export default function SessionView() {
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                         <span className="font-bold bg-gradient-to-r from-purple-400 to-blue-500 bg-clip-text text-transparent">Live Session</span>
                     </div>
-                    {session?.currentSong && (
-                        <div className="hidden md:flex items-center gap-4 text-sm font-mono text-gray-500">
-                            <span>Key: <span className="text-purple-400">{session.currentSong.transpose > 0 ? `+${session.currentSong.transpose}` : session.currentSong.transpose}</span></span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-4">
+                        {session?.currentSong && (
+                            <div className="hidden md:flex items-center gap-4 text-sm font-mono text-gray-500">
+                                <span>Key: <span className="text-purple-400">{session.currentSong.transpose > 0 ? `+${session.currentSong.transpose}` : session.currentSong.transpose}</span></span>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => navigate('/')}
+                            className="flex items-center gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border border-red-500/30 hover:border-red-500/50"
+                        >
+                            <LogOut size={14} />
+                            <span>Leave</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

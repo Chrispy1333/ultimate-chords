@@ -179,7 +179,7 @@ export default function Library() {
                                     ) : (
                                         <Play size={16} className="fill-current" />
                                     )}
-                                    <span className="hidden sm:inline">Start Session</span>
+                                    <span>Start Session</span>
                                 </button>
                             )}
                         </div>
