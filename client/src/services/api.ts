@@ -59,7 +59,7 @@ const setCache = <T>(key: string, data: T) => {
 
 export const api = {
     search: async (query: string): Promise<SearchResult[]> => {
-        const cacheKey = `search:${query.toLowerCase()}`;
+        const cacheKey = `search_v2:${query.toLowerCase()}`;
         const cached = getCache<SearchResult[]>(cacheKey);
         if (cached) return cached;
 
@@ -69,12 +69,15 @@ export const api = {
             throw new Error(errorData.error || `Search failed: ${res.status}`);
         }
         const data = await res.json();
-        setCache(cacheKey, data);
+        // Only cache if we actually found results
+        if (data && data.length > 0) {
+            setCache(cacheKey, data);
+        }
         return data;
     },
 
     getTab: async (url: string): Promise<TabData> => {
-        const cacheKey = `tab:${url}`;
+        const cacheKey = `tab_v2:${url}`;
         const cached = getCache<TabData>(cacheKey);
         if (cached) return cached;
 
