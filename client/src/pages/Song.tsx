@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ChevronLeft, Minus, Plus, Music, Heart, Menu, X, Library, LogOut } from 'lucide-react';
 import { api, type TabData } from '../services/api';
-import type { SavedSong } from '../services/db';
+
 import { TabViewer } from '../components/TabViewer';
 import { useTranspose } from '../hooks/useTranspose';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,7 +30,7 @@ export default function Song() {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [savedSongId, setSavedSongId] = useState<string | null>(null);
-    const [savedSongData, setSavedSongData] = useState<SavedSong | null>(null);
+
     const [useFlats, setUseFlats] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
@@ -103,7 +103,6 @@ export default function Song() {
                 // 3. Update saved state based on what we found in DB (if anything)
                 if (foundSavedSong) {
                     setSavedSongId(foundSavedSong.id);
-                    setSavedSongData(foundSavedSong);
                     setIsSaved(true);
 
                     // Apply saved settings
@@ -115,7 +114,6 @@ export default function Song() {
                     setSavedSettings({ transpose, useFlats: flats });
                 } else {
                     setSavedSongId(null);
-                    setSavedSongData(null);
                     setIsSaved(false);
                     setUseFlats(false);
                     setSavedSettings(null);
@@ -182,6 +180,7 @@ export default function Song() {
         const subscribe = async () => {
             try {
                 const { db } = await import('../lib/firebase');
+                if (!db) return;
                 const { doc, onSnapshot } = await import('firebase/firestore');
 
                 const unsubscribe = onSnapshot(doc(db, 'sessions', activeSessionId), (doc) => {
