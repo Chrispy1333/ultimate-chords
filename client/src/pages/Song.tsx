@@ -23,9 +23,17 @@ export default function Song() {
     const [savedSongId, setSavedSongId] = useState<string | null>(null);
     const [useFlats, setUseFlats] = useState(false);
 
+    // Track original saved settings to detect changes
+    const [savedSettings, setSavedSettings] = useState<{ transpose: number; useFlats: boolean } | null>(null);
+
     // Transpose hook
     // We need to initialize it with content when data loads
     const { semitones, setSemitones, transposedContent } = useTranspose(data?.content || '', useFlats);
+
+    const isModified = isSaved && savedSettings && (
+        semitones !== savedSettings.transpose ||
+        useFlats !== savedSettings.useFlats
+    );
 
     useEffect(() => {
         const newUrl = searchParams.get('url');
@@ -48,6 +56,7 @@ export default function Song() {
             setIsSaved(false);
             setSavedSongId(null);
             setUseFlats(false);
+            setSavedSettings(null);
         }
     }, [user, url]);
 
@@ -59,18 +68,19 @@ export default function Song() {
             if (song) {
                 setSavedSongId(song.id);
                 setIsSaved(true);
-                // Apply saved transposition
-                if (typeof song.transpose === 'number') {
-                    setSemitones(song.transpose);
-                }
-                // Apply saved flats preference
-                if (song.useFlats !== undefined) {
-                    setUseFlats(song.useFlats);
-                }
+
+                // Apply saved settings
+                const transpose = typeof song.transpose === 'number' ? song.transpose : 0;
+                const flats = song.useFlats !== undefined ? song.useFlats : false;
+
+                setSemitones(transpose);
+                setUseFlats(flats);
+                setSavedSettings({ transpose, useFlats: flats });
             } else {
                 setSavedSongId(null);
                 setIsSaved(false);
                 setUseFlats(false);
+                setSavedSettings(null);
             }
         } catch (e) {
             console.error("Failed to check saved status", e);
@@ -84,15 +94,31 @@ export default function Song() {
         }
 
         if (isSaved && savedSongId) {
-            // Unsave
-            if (confirm("Remove this song from your library?")) {
+            if (isModified) {
+                // Update existing song settings
                 try {
                     const { dbService } = await import('../services/db');
-                    await dbService.deleteSong(savedSongId);
-                    setIsSaved(false);
-                    setSavedSongId(null);
+                    await dbService.updateSongSettings(savedSongId, {
+                        transpose: semitones,
+                        useFlats: useFlats
+                    });
+                    setSavedSettings({ transpose: semitones, useFlats });
+                    // Optional: Validation feedback could go here
                 } catch (e) {
-                    console.error("Failed to remove song", e);
+                    console.error("Failed to update song settings", e);
+                }
+            } else {
+                // Unsave
+                if (confirm("Remove this song from your library?")) {
+                    try {
+                        const { dbService } = await import('../services/db');
+                        await dbService.deleteSong(savedSongId);
+                        setIsSaved(false);
+                        setSavedSongId(null);
+                        setSavedSettings(null);
+                    } catch (e) {
+                        console.error("Failed to remove song", e);
+                    }
                 }
             }
         } else {
@@ -140,10 +166,17 @@ export default function Song() {
                         {user && (
                             <button
                                 onClick={handleHeartClick}
-                                className="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-purple-400"
-                                title={isSaved ? "Saved" : "Save to Library"}
+                                className={`p-2 hover:bg-white/10 rounded-full transition-colors ${isSaved && !isModified ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'
+                                    }`}
+                                title={
+                                    isSaved
+                                        ? (isModified ? "Update Saved Settings" : "Saved")
+                                        : "Save to Library"
+                                }
                             >
-                                <Heart className={`w-6 h-6 ${isSaved ? 'fill-purple-500 text-purple-500' : ''}`} />
+                                <Heart
+                                    className={`w-6 h-6 ${isSaved && !isModified ? 'fill-purple-500' : ''}`}
+                                />
                             </button>
                         )}
 
@@ -151,8 +184,8 @@ export default function Song() {
                         <button
                             onClick={() => setUseFlats(!useFlats)}
                             className={`h-9 w-9 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
-                                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
-                                    : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
+                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+                                : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
                                 }`}
                             title="Use Flats"
                         >
@@ -220,6 +253,7 @@ export default function Song() {
                     onSave={(id) => {
                         setIsSaved(true);
                         setSavedSongId(id);
+                        setSavedSettings({ transpose: semitones, useFlats });
                     }}
                 />
             )}

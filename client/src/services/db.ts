@@ -73,6 +73,11 @@ export const dbService = {
         await updateDoc(songRef, { folderIds });
     },
 
+    async updateSongSettings(songId: string, settings: { transpose: number; useFlats: boolean }) {
+        const songRef = doc(db!, 'saved_songs', songId);
+        await updateDoc(songRef, settings);
+    },
+
     async getUserSongs(userId: string) {
         const songsRef = collection(db!, 'saved_songs');
         const q = query(songsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
