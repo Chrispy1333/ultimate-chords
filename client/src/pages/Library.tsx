@@ -9,6 +9,9 @@ import { Navbar } from '../components/Navbar';
 import { useSession } from '../contexts/SessionContext';
 import { SessionQRModal } from '../components/SessionQRModal';
 import { sessionService } from '../services/session';
+import { QuickChatOverlay } from '../components/QuickChatOverlay';
+import { BroadcastDisplay } from '../components/BroadcastDisplay';
+import { MessageSquarePlus } from 'lucide-react';
 
 export default function Library() {
     const { user } = useAuth();
@@ -33,6 +36,32 @@ export default function Library() {
     // Context Menu
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, songId: string } | null>(null);
     const [showAddToFolderModal, setShowAddToFolderModal] = useState<string | null>(null); // songId
+
+    // Quick Chat State
+    const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
+
+    // We need to subscribe to session updates to get the broadcast message
+    // The useSession context provides activeSessionId, but maybe not the full session object with broadcastMessage
+    // Let's hook up a listener here or expand the context. 
+    // For now, let's just listen to the session document if we have an ID.
+    const [sessionData, setSessionData] = useState<any>(null);
+
+    useEffect(() => {
+        if (!activeSessionId) return;
+        const unsubscribe = sessionService.subscribeToSession(activeSessionId, (data) => {
+            setSessionData(data);
+        });
+        return () => unsubscribe();
+    }, [activeSessionId]);
+
+    const handleBroadcast = async (message: string) => {
+        if (!activeSessionId) return;
+        try {
+            await sessionService.broadcastMessage(activeSessionId, message);
+        } catch (err) {
+            console.error("Failed to broadcast message", err);
+        }
+    };
 
     const handleStartSession = async () => {
         if (!user) return;
@@ -381,6 +410,28 @@ export default function Library() {
                     />
                 )}
             </AnimatePresence>
+
+            {/* Quick Chat Overlay & Display */}
+            <BroadcastDisplay message={sessionData?.broadcastMessage} isLeader={!!(activeSessionId && isLeader)} />
+
+            {activeSessionId && isLeader && (
+                <>
+                    <QuickChatOverlay
+                        isOpen={isQuickChatOpen}
+                        onClose={() => setIsQuickChatOpen(false)}
+                        onBroadcast={handleBroadcast}
+                    />
+
+                    {/* Floating Action Button */}
+                    <button
+                        onClick={() => setIsQuickChatOpen(true)}
+                        className="fixed bottom-6 right-6 z-40 bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 transition-all hover:scale-105 active:scale-95"
+                        aria-label="Quick Chat"
+                    >
+                        <MessageSquarePlus size={24} />
+                    </button>
+                </>
+            )}
         </div >
     );
 }

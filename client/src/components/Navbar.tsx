@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-import { Menu, LogOut, Library, X, LogIn } from 'lucide-react';
+import { Menu, LogOut, Library, X, LogIn, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavbarProps {
@@ -54,6 +54,10 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
                             <Library size={18} />
                             <span>My Library</span>
                         </Link>
+                        <Link to="/settings" className="text-gray-300 hover:text-purple-400 transition-colors flex items-center gap-2">
+                            <Settings size={18} />
+                            <span>Settings</span>
+                        </Link>
                         <button
                             onClick={handleLogout}
                             className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
@@ -100,6 +104,14 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
                                     >
                                         <Library size={16} className="text-purple-400" />
                                         My Library
+                                    </Link>
+                                    <Link
+                                        to="/settings"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="px-4 py-3 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-3"
+                                    >
+                                        <Settings size={16} className="text-purple-400" />
+                                        Settings
                                     </Link>
                                     <button
                                         onClick={() => {

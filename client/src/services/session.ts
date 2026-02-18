@@ -13,6 +13,12 @@ import {
 } from 'firebase/firestore';
 import { type SavedSong } from './db';
 
+export interface BroadcastMessage {
+    text: string;
+    timestamp: any; // ServerTimestamp
+    id: string;
+}
+
 export interface Session {
     id: string;
     leaderId: string;
@@ -20,6 +26,7 @@ export interface Session {
     participants: string[];
     isActive: boolean;
     createdAt: any;
+    broadcastMessage?: BroadcastMessage | null;
 }
 
 export const sessionService = {
@@ -58,7 +65,22 @@ export const sessionService = {
         if (!db) throw new Error("Database not initialized");
         const sessionRef = doc(db, 'sessions', sessionId);
         await updateDoc(sessionRef, {
-            currentSong: song
+            currentSong: song,
+            // Clear any previous broadcast when changing songs to avoid confusion
+            broadcastMessage: null
+        });
+    },
+
+    async broadcastMessage(sessionId: string, message: string) {
+        if (!db) throw new Error("Database not initialized");
+        const sessionRef = doc(db, 'sessions', sessionId);
+        const broadcastData: BroadcastMessage = {
+            text: message,
+            timestamp: serverTimestamp(),
+            id: Math.random().toString(36).substr(2, 9)
+        };
+        await updateDoc(sessionRef, {
+            broadcastMessage: broadcastData
         });
     },
 

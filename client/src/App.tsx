@@ -7,6 +7,9 @@ import Library from './pages/Library';
 import SessionLobby from './pages/SessionLobby';
 import SessionView from './pages/SessionView';
 
+import Settings from './pages/Settings';
+import QuickChatSettings from './pages/QuickChatSettings';
+
 import { SessionProvider } from './contexts/SessionContext';
 
 function App() {
@@ -21,6 +24,8 @@ function App() {
               <Route path="/library" element={<Library />} />
               <Route path="/session/lobby" element={<SessionLobby />} />
               <Route path="/session/:sessionId" element={<SessionView />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/settings/quick-chat" element={<QuickChatSettings />} />
             </Routes>
           </div>
         </Router>

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sessionService, type Session } from '../services/session';
 import { TabViewer } from '../components/TabViewer';
+import { QuickChatOverlay } from '../components/QuickChatOverlay';
+import { BroadcastDisplay } from '../components/BroadcastDisplay';
 import { useTranspose } from '../hooks/useTranspose';
-import { Music, LogOut } from 'lucide-react';
+import { Music, LogOut, MessageSquarePlus } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +15,7 @@ export default function SessionView() {
     const [session, setSession] = useState<Session | null>(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
     const { user, loading: authLoading } = useAuth();
 
 
@@ -20,7 +23,17 @@ export default function SessionView() {
     // Derived state for transposition
     // We default to 0 and false, and update when session changes
     const currentSong = session?.currentSong;
+    const isLeader = user && session?.leaderId === user.uid;
     const { setSemitones, transposedContent } = useTranspose(currentSong?.content || '', currentSong?.useFlats || false);
+
+    const handleBroadcast = async (message: string) => {
+        if (!sessionId) return;
+        try {
+            await sessionService.broadcastMessage(sessionId, message);
+        } catch (err) {
+            console.error("Failed to broadcast message", err);
+        }
+    };
 
     // Ensure we are authenticated (anonymously if needed)
     useEffect(() => {
@@ -128,6 +141,28 @@ export default function SessionView() {
                     </div>
                 )}
             </div>
+
+            {/* Quick Chat Overlay & Display */}
+            <BroadcastDisplay message={session?.broadcastMessage} />
+
+            {isLeader && (
+                <>
+                    <QuickChatOverlay
+                        isOpen={isQuickChatOpen}
+                        onClose={() => setIsQuickChatOpen(false)}
+                        onBroadcast={handleBroadcast}
+                    />
+
+                    {/* Floating Action Button */}
+                    <button
+                        onClick={() => setIsQuickChatOpen(true)}
+                        className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
+                        aria-label="Quick Chat"
+                    >
+                        <MessageSquarePlus size={24} />
+                    </button>
+                </>
+            )}
         </div>
     );
 }

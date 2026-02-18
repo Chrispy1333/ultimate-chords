@@ -8,6 +8,9 @@ import { useTranspose } from '../hooks/useTranspose';
 import { useAuth } from '../contexts/AuthContext';
 import { useSession } from '../contexts/SessionContext';
 import { SaveModal } from '../components/SaveModal';
+import { QuickChatOverlay } from '../components/QuickChatOverlay';
+import { BroadcastDisplay } from '../components/BroadcastDisplay';
+import { MessageSquarePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Song() {
@@ -28,9 +31,12 @@ export default function Song() {
     const [savedSongData, setSavedSongData] = useState<SavedSong | null>(null);
     const [useFlats, setUseFlats] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
 
     // Track original saved settings to detect changes
     const [savedSettings, setSavedSettings] = useState<{ transpose: number; useFlats: boolean } | null>(null);
+    // Session data state
+    const [sessionData, setSessionData] = useState<any | null>(null);
 
     // Transpose hook
     // We need to initialize it with content when data loads
@@ -162,24 +168,39 @@ export default function Song() {
         return () => clearTimeout(timeout);
     }, [activeSessionId, isLeader, data, semitones, useFlats, savedSongId, url, state]);
 
-    // Auto-update saved song with content if missing (Migration/Backfill)
+
+
+    // Subscribe to session data if active
     useEffect(() => {
-        const backfillContent = async () => {
-            if (isSaved && savedSongId && savedSongData && !savedSongData.content && data?.content) {
-                console.log("Backfilling missing content for saved song...");
-                try {
-                    const { dbService } = await import('../services/db');
-                    await dbService.updateSong(savedSongId, { content: data.content });
-                    // Update local state so we don't loop
-                    setSavedSongData({ ...savedSongData, content: data.content });
-                    console.log("Content backfilled successfully.");
-                } catch (e) {
-                    console.error("Failed to backfill content", e);
-                }
+        if (!activeSessionId) {
+            setSessionData(null);
+            return;
+        }
+
+        const subscribe = async () => {
+            try {
+                const { db } = await import('../lib/firebase');
+                const { doc, onSnapshot } = await import('firebase/firestore');
+
+                const unsubscribe = onSnapshot(doc(db, 'sessions', activeSessionId), (doc) => {
+                    if (doc.exists()) {
+                        setSessionData(doc.data());
+                    } else {
+                        setSessionData(null);
+                    }
+                });
+                return unsubscribe;
+            } catch (e) {
+                console.error("Failed to subscribe to session", e);
             }
         };
-        backfillContent();
-    }, [isSaved, savedSongId, savedSongData, data]);
+
+        const unsubscribePromise = subscribe();
+
+        return () => {
+            unsubscribePromise.then(unsub => unsub && unsub());
+        };
+    }, [activeSessionId]);
 
     const handleHeartClick = async () => {
         if (!user) {
@@ -490,6 +511,40 @@ export default function Song() {
                     }}
                 />
             )}
-        </div>
+
+            {/* Quick Chat Overlay & Display */}
+            <BroadcastDisplay message={sessionData?.broadcastMessage} isLeader={!!(activeSessionId && isLeader)} />
+
+            {
+                activeSessionId && isLeader && (
+                    <>
+                        <QuickChatOverlay
+                            isOpen={isQuickChatOpen}
+                            onClose={() => setIsQuickChatOpen(false)}
+                            onBroadcast={async (msg) => {
+                                try {
+                                    const { sessionService } = await import('../services/session');
+                                    await sessionService.broadcastMessage(activeSessionId, msg);
+                                } catch (e) {
+                                    console.error("Failed to showcase message", e);
+                                }
+                            }}
+                        />
+
+                        <motion.button
+                            layout
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setIsQuickChatOpen(true)}
+                            className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
+                        >
+                            <MessageSquarePlus size={24} />
+                        </motion.button>
+                    </>
+                )
+            }
+        </div >
     );
 }
