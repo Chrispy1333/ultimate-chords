@@ -16,7 +16,7 @@ class Scraper:
             response = self.scraper.get(url)
             if response.status_code != 200:
                 print(f"Failed to fetch {url}: {response.status_code}")
-                return None
+                return None, f"HTTP {response.status_code}"
             
             data = None
             
@@ -34,7 +34,7 @@ class Scraper:
                         print("Extracted data from js-store")
             except Exception as e:
                 print(f"Error parsing js-store: {e}")
-
+            
             # Method 2: Fallback to regex/split on window.UGAPP.store.page
             if not data and 'window.UGAPP.store.page = ' in response.text:
                 try:
@@ -43,12 +43,18 @@ class Scraper:
                     print("Extracted data from window.UGAPP.store.page")
                 except Exception as e:
                     print(f"Error parsing window.UGAPP.store.page: {e}")
+            
+            if not data:
+                # Check if it's a captcha page or just failed parsing
+                if "captcha" in response.text.lower():
+                    return None, "Captcha detected"
+                return None, "Failed to parse data from page"
 
-            return data
+            return data, None
 
         except Exception as e:
             print(f"Error scraping {url}: {e}")
-            return None
+            return None, str(e)
 
     def search(self, query, type='Tabs'):
         # Navigate to search query
