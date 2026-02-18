@@ -22,6 +22,8 @@ export function BroadcastDisplay({ message, isLeader = false }: BroadcastDisplay
             }, 3000);
 
             return () => clearTimeout(timer);
+        } else if (!message?.text) {
+            setVisible(false);
         }
     }, [message?.id, message?.text, isLeader]);
 
