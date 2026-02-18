@@ -1,8 +1,8 @@
-import { X, Settings as SettingsIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Settings as SettingsIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import type { QuickChatSection } from '../pages/QuickChatSettings';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface QuickChatOverlayProps {
     isOpen: boolean;
@@ -10,38 +10,23 @@ interface QuickChatOverlayProps {
     onBroadcast: (message: string) => void;
 }
 
-const DEFAULT_SECTIONS: QuickChatSection[] = [
-    {
-        id: 'section-1',
-        title: 'Song Parts',
-        messages: ['Verse 1', 'Verse 2', 'Verse 3', 'Chorus', 'Bridge']
-    },
-    {
-        id: 'section-2',
-        title: 'Dynamics',
-        messages: ['Repeat', 'Build up', 'Quiet down']
-    }
-];
-
 export function QuickChatOverlay({ isOpen, onClose, onBroadcast }: QuickChatOverlayProps) {
-    // Lock body scroll when open
+    const { settings } = useSettings();
+    const sections = settings.quickChat?.sections || [];
+
+    // Scroll locking
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
         } else {
-            document.body.style.overflow = 'unset';
+            document.body.style.overflow = '';
         }
         return () => {
-            document.body.style.overflow = 'unset';
+            document.body.style.overflow = '';
         };
     }, [isOpen]);
 
-    // We re-read from localStorage every time it opens (or just rely on react state if we hoisted it,  
-    // but reading from LS on mount/render is safer if Settings page changed it)
-    const sections: QuickChatSection[] = (() => {
-        const saved = localStorage.getItem('quickChatSections_v2');
-        return saved ? JSON.parse(saved) : DEFAULT_SECTIONS;
-    })();
+    if (!isOpen) return null;
 
     const handleBroadcast = (text: string) => {
         onBroadcast(text);

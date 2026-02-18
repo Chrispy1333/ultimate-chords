@@ -9,6 +9,7 @@ import { Music, LogOut, MessageSquarePlus } from 'lucide-react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSettings } from '../contexts/SettingsContext';
 export default function SessionView() {
     const { sessionId } = useParams<{ sessionId: string }>();
     const navigate = useNavigate();
@@ -17,6 +18,7 @@ export default function SessionView() {
     const [loading, setLoading] = useState(true);
     const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
     const { user, loading: authLoading } = useAuth();
+    const { settings } = useSettings();
 
 
 
@@ -154,13 +156,15 @@ export default function SessionView() {
                     />
 
                     {/* Floating Action Button */}
-                    <button
-                        onClick={() => setIsQuickChatOpen(true)}
-                        className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
-                        aria-label="Quick Chat"
-                    >
-                        <MessageSquarePlus size={24} />
-                    </button>
+                    {settings.quickChat?.enabled && (
+                        <button
+                            onClick={() => setIsQuickChatOpen(true)}
+                            className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
+                            aria-label="Quick Chat"
+                        >
+                            <MessageSquarePlus size={24} />
+                        </button>
+                    )}
                 </>
             )}
         </div>

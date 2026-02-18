@@ -9,7 +9,9 @@ import {
     serverTimestamp,
     deleteDoc,
     doc,
-    updateDoc
+    updateDoc,
+    onSnapshot,
+    type Unsubscribe
 } from 'firebase/firestore';
 
 export interface Folder {
@@ -52,6 +54,15 @@ export const dbService = {
         const q = query(foldersRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
         const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+    },
+
+    subscribeToUserFolders(userId: string, callback: (folders: Folder[]) => void): Unsubscribe {
+        const foldersRef = collection(db!, 'folders');
+        const q = query(foldersRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+        return onSnapshot(q, (snapshot) => {
+            const folders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Folder));
+            callback(folders);
+        });
     },
 
     async deleteFolder(folderId: string) {
@@ -102,6 +113,23 @@ export const dbService = {
         });
     },
 
+    subscribeToUserSongs(userId: string, callback: (songs: SavedSong[]) => void): Unsubscribe {
+        const songsRef = collection(db!, 'saved_songs');
+        const q = query(songsRef, where("userId", "==", userId), orderBy("createdAt", "desc"));
+        return onSnapshot(q, (snapshot) => {
+            const songs = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Migration / Compatibility
+                let folderIds = data.folderIds || [];
+                if (!data.folderIds && data.folderId) {
+                    folderIds = [data.folderId];
+                }
+                return { id: doc.id, ...data, folderIds } as SavedSong;
+            });
+            callback(songs);
+        });
+    },
+
     async deleteSong(songId: string) {
         await deleteDoc(doc(db!, 'saved_songs', songId));
     },
@@ -125,5 +153,37 @@ export const dbService = {
             folderIds = [data.folderId];
         }
         return { id: doc.id, ...data, folderIds } as SavedSong;
+    },
+
+    // User Settings
+    async updateUserSettings(userId: string, settings: Partial<UserSettings>) {
+        const userRef = doc(db!, 'users', userId);
+        // We use setDoc with merge: true to ensure the document exists
+        const { setDoc } = await import('firebase/firestore');
+        await setDoc(userRef, { settings }, { merge: true });
+    },
+
+    subscribeToUserSettings(userId: string, callback: (settings: UserSettings | null) => void): Unsubscribe {
+        const userRef = doc(db!, 'users', userId);
+        return onSnapshot(userRef, (doc) => {
+            if (doc.exists() && doc.data().settings) {
+                callback(doc.data().settings as UserSettings);
+            } else {
+                callback(null);
+            }
+        });
     }
 };
+
+export interface QuickChatSection {
+    id: string;
+    title: string;
+    messages: string[];
+}
+
+export interface UserSettings {
+    quickChat?: {
+        enabled: boolean;
+        sections: QuickChatSection[];
+    };
+}

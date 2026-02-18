@@ -10,6 +10,7 @@ import { useSession } from '../contexts/SessionContext';
 import { SaveModal } from '../components/SaveModal';
 import { QuickChatOverlay } from '../components/QuickChatOverlay';
 import { BroadcastDisplay } from '../components/BroadcastDisplay';
+import { useSettings } from '../contexts/SettingsContext';
 import { MessageSquarePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,6 +22,7 @@ export default function Song() {
     const [url, setUrl] = useState(searchParams.get('url'));
     const { user, signInWithGoogle, logout } = useAuth(); // Get user to show save button
     const { activeSessionId, isLeader } = useSession();
+    const { settings } = useSettings();
 
     const [data, setData] = useState<TabData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -531,17 +533,19 @@ export default function Song() {
                             }}
                         />
 
-                        <motion.button
-                            layout
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => setIsQuickChatOpen(true)}
-                            className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
-                        >
-                            <MessageSquarePlus size={24} />
-                        </motion.button>
+                        {settings.quickChat?.enabled && (
+                            <motion.button
+                                layout
+                                initial={{ scale: 0, rotate: -180 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => setIsQuickChatOpen(true)}
+                                className="fixed bottom-6 right-6 z-40 bg-purple-600 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 hover:bg-purple-500 transition-colors"
+                            >
+                                <MessageSquarePlus size={24} />
+                            </motion.button>
+                        )}
                     </>
                 )
             }

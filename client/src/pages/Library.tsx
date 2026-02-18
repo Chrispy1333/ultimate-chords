@@ -7,6 +7,7 @@ import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X, QrCode
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '../components/Navbar';
 import { useSession } from '../contexts/SessionContext';
+import { useSettings } from '../contexts/SettingsContext';
 import { SessionQRModal } from '../components/SessionQRModal';
 import { sessionService } from '../services/session';
 import { QuickChatOverlay } from '../components/QuickChatOverlay';
@@ -15,6 +16,7 @@ import { MessageSquarePlus } from 'lucide-react';
 
 export default function Library() {
     const { user } = useAuth();
+    const { settings } = useSettings();
 
     const { activeSessionId, isLeader, startSession, endSession } = useSession();
 
@@ -47,7 +49,10 @@ export default function Library() {
     const [sessionData, setSessionData] = useState<any>(null);
 
     useEffect(() => {
-        if (!activeSessionId) return;
+        if (!activeSessionId) {
+            setSessionData(null);
+            return;
+        }
         const unsubscribe = sessionService.subscribeToSession(activeSessionId, (data) => {
             setSessionData(data);
         });
@@ -89,40 +94,48 @@ export default function Library() {
     };
 
     useEffect(() => {
-        if (user) {
-            loadLibrary();
-        }
+        if (!user) return;
+
+        setLoading(true);
+
+        const unsubscribeSongs = dbService.subscribeToUserSongs(user.uid, (songsData) => {
+            setSongs(songsData);
+            setLoading(false);
+        });
+
+        const unsubscribeFolders = dbService.subscribeToUserFolders(user.uid, (foldersData) => {
+            setFolders(foldersData);
+        });
+
+        return () => {
+            unsubscribeSongs();
+            unsubscribeFolders();
+        };
     }, [user]);
 
-    // Click outside to close context menu
+    // Click outside to close context menu & Request Persistence
     useEffect(() => {
         const handleClick = () => setContextMenu(null);
         window.addEventListener('click', handleClick);
+
+        // Request persistent storage
+        if (navigator.storage && navigator.storage.persist) {
+            navigator.storage.persist().then(granted => {
+                if (granted) {
+                    console.log("Storage will not be cleared except by explicit user action");
+                } else {
+                    console.log("Storage may be cleared by the UA under storage pressure.");
+                }
+            });
+        }
+
         return () => window.removeEventListener('click', handleClick);
     }, []);
-
-    const loadLibrary = async () => {
-        if (!user) return;
-        setLoading(true);
-        try {
-            const [songsData, foldersData] = await Promise.all([
-                dbService.getUserSongs(user.uid),
-                dbService.getUserFolders(user.uid)
-            ]);
-            setSongs(songsData);
-            setFolders(foldersData);
-        } catch (error) {
-            console.error("Failed to load library", error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleCreateFolder = async () => {
         if (!user || !newFolderName.trim()) return;
         try {
-            const newFolder = await dbService.createFolder(user.uid, newFolderName);
-            setFolders([newFolder as Folder, ...folders]);
+            await dbService.createFolder(user.uid, newFolderName);
             setNewFolderName('');
             setIsCreatingFolder(false);
         } catch (error) {
@@ -134,7 +147,6 @@ export default function Library() {
         if (!confirm("Are you sure you want to remove this song from your library?")) return;
         try {
             await dbService.deleteSong(songId);
-            setSongs(songs.filter(s => s.id !== songId));
         } catch (error) {
             console.error("Failed to delete song", error);
         }
@@ -144,7 +156,6 @@ export default function Library() {
         if (!confirm("Delete this folder? Songs will remain in 'All Songs'.")) return;
         try {
             await dbService.deleteFolder(folderId);
-            setFolders(folders.filter(f => f.id !== folderId));
             if (activeFolderId === folderId) setActiveFolderId(null);
         } catch (error) {
             console.error("Failed to delete folder", error);
@@ -392,8 +403,7 @@ export default function Library() {
                         songId={showAddToFolderModal}
                         existingFolderIds={songs.find(s => s.id === showAddToFolderModal)?.folderIds || []}
                         onClose={() => setShowAddToFolderModal(null)}
-                        onUpdate={(newFolderIds) => {
-                            setSongs(songs.map(s => s.id === showAddToFolderModal ? { ...s, folderIds: newFolderIds } : s));
+                        onUpdate={() => {
                             setShowAddToFolderModal(null);
                         }}
                     />
@@ -423,13 +433,15 @@ export default function Library() {
                     />
 
                     {/* Floating Action Button */}
-                    <button
-                        onClick={() => setIsQuickChatOpen(true)}
-                        className="fixed bottom-6 right-6 z-40 bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 transition-all hover:scale-105 active:scale-95"
-                        aria-label="Quick Chat"
-                    >
-                        <MessageSquarePlus size={24} />
-                    </button>
+                    {settings.quickChat?.enabled && (
+                        <button
+                            onClick={() => setIsQuickChatOpen(true)}
+                            className="fixed bottom-6 right-6 z-40 bg-purple-600 hover:bg-purple-500 text-white p-4 rounded-full shadow-lg shadow-purple-900/40 transition-all hover:scale-105 active:scale-95"
+                            aria-label="Quick Chat"
+                        >
+                            <MessageSquarePlus size={24} />
+                        </button>
+                    )}
                 </>
             )}
         </div >
