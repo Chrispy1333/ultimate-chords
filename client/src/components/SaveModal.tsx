@@ -11,6 +11,7 @@ interface SaveModalProps {
         artist: string;
         url: string;
         transpose: number;
+        useFlats?: boolean;
     };
     onSave?: (id: string) => void;
 }
@@ -70,6 +71,7 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
                 artist: songData.artist,
                 url: songData.url,
                 transpose: songData.transpose,
+                useFlats: songData.useFlats,
                 folderIds: selectedFolderIds
             });
             onClose();

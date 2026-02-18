@@ -12,7 +12,7 @@ export default function Song() {
     const navigate = useNavigate();
     const location = useLocation();
     const state = location.state as { title?: string; artist?: string } | null;
-    const url = searchParams.get('url');
+    const [url, setUrl] = useState(searchParams.get('url'));
     const { user, signInWithGoogle } = useAuth(); // Get user to show save button
 
     const [data, setData] = useState<TabData | null>(null);
@@ -21,10 +21,16 @@ export default function Song() {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [savedSongId, setSavedSongId] = useState<string | null>(null);
+    const [useFlats, setUseFlats] = useState(false);
 
     // Transpose hook
     // We need to initialize it with content when data loads
-    const { semitones, setSemitones, transposedContent } = useTranspose(data?.content || '');
+    const { semitones, setSemitones, transposedContent } = useTranspose(data?.content || '', useFlats);
+
+    useEffect(() => {
+        const newUrl = searchParams.get('url');
+        if (newUrl) setUrl(newUrl);
+    }, [searchParams]);
 
     useEffect(() => {
         if (!url) return;
@@ -41,6 +47,7 @@ export default function Song() {
         } else {
             setIsSaved(false);
             setSavedSongId(null);
+            setUseFlats(false);
         }
     }, [user, url]);
 
@@ -56,9 +63,14 @@ export default function Song() {
                 if (typeof song.transpose === 'number') {
                     setSemitones(song.transpose);
                 }
+                // Apply saved flats preference
+                if (song.useFlats !== undefined) {
+                    setUseFlats(song.useFlats);
+                }
             } else {
                 setSavedSongId(null);
                 setIsSaved(false);
+                setUseFlats(false);
             }
         } catch (e) {
             console.error("Failed to check saved status", e);
@@ -135,6 +147,18 @@ export default function Song() {
                             </button>
                         )}
 
+                        {/* Use Flats Toggle */}
+                        <button
+                            onClick={() => setUseFlats(!useFlats)}
+                            className={`h-9 w-9 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
+                                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+                                    : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
+                                }`}
+                            title="Use Flats"
+                        >
+                            b
+                        </button>
+
                         <div className="flex items-center gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
                             <button
                                 onClick={() => setSemitones(s => s - 1)}
@@ -190,7 +214,8 @@ export default function Song() {
                         title: data.song_name || state?.title || '',
                         artist: data.artist_name || state?.artist || '',
                         url: url || '',
-                        transpose: semitones
+                        transpose: semitones,
+                        useFlats: useFlats
                     }}
                     onSave={(id) => {
                         setIsSaved(true);

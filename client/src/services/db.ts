@@ -27,6 +27,7 @@ export interface SavedSong {
     artist: string;
     url: string;
     transpose: number;
+    useFlats?: boolean;
     createdAt: any;
 }
 
