@@ -54,10 +54,10 @@ export default function Home() {
     };
 
     return (
-        <div className="w-full min-h-screen">
+        <div className={`w-full flex flex-col ${searched ? 'min-h-screen' : 'h-dvh overflow-hidden'}`}>
             <Navbar transparent={true} />
-            <div className="w-full max-w-4xl lg:max-w-7xl mx-auto px-6 pt-24 pb-10 flex flex-col items-center">
-                <div className={`transition-all duration-500 flex flex-col items-center w-full max-w-3xl ${searched ? 'mb-8' : 'mb-8 mt-[20vh]'}`}>
+            <div className={`w-full max-w-4xl lg:max-w-7xl mx-auto px-6 flex flex-col items-center ${searched ? 'pt-24 pb-10' : 'flex-1 justify-center pb-16'}`}>
+                <div className={`transition-all duration-500 flex flex-col items-center w-full max-w-3xl ${searched ? 'mb-8' : 'mb-0'}`}>
                     <h1 className={`font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-2 ${searched ? 'text-3xl lg:text-4xl' : 'text-5xl lg:text-7xl'}`}>
                         Ultimate Chords
                     </h1>
