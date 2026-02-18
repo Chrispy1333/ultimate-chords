@@ -33,7 +33,7 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
     };
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between transition-colors ${transparent ? 'bg-transparent' : 'bg-[#050505]/90 backdrop-blur-md border-b border-neutral-800'
+        <nav className={`fixed top-0 left-0 right-0 z-50 px-6 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between transition-colors ${transparent ? 'bg-transparent' : 'bg-[#050505]/95 backdrop-blur-md border-b border-neutral-800'
             } ${className}`}>
 
             {/* Logo */}
