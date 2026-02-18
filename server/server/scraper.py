@@ -56,7 +56,105 @@ class Scraper:
             print(f"Error scraping {url}: {e}")
             return None, str(e)
 
+    def search_ddg(self, query):
+        print(f"Searching via DDG for: {query}")
+        search_query = f"{query} chords ultimate guitar"
+        encoded_query = urllib.parse.quote(search_query)
+        url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+        
+        try:
+            # We use the existing scraper but for DDG
+            # DDG might block cloudscraper if it looks too bot-like, but usually html version is fine
+            response = self.scraper.get(url)
+            if response.status_code != 200:
+                print(f"DDG Failed: {response.status_code}")
+                return [], f"DDG HTTP {response.status_code}"
+                
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            results = []
+            for result in soup.select('.result'):
+                title_elem = result.select_one('.result__a')
+                if not title_elem:
+                    continue
+                    
+                link = title_elem['href']
+                
+                # Check if it's an ultimate-guitar tab link
+                if 'tabs.ultimate-guitar.com/tab/' in link:
+                    # Clean up URL (DDG might wrap it)
+                    if 'uddg=' in link:
+                         # /l/?kh=-1&uddg=https%3A%2F%2Ftabs.ultimate-guitar.com...
+                         try:
+                             from urllib.parse import parse_qs, urlparse
+                             parsed = urlparse(link)
+                             qs = parse_qs(parsed.query)
+                             if 'uddg' in qs:
+                                 link = qs['uddg'][0]
+                         except:
+                             pass
+
+                    # Parse details from URL
+                    # https://tabs.ultimate-guitar.com/tab/artist-name/song-name-type-123456
+                    try:
+                        parts = link.split('/tab/')[1].split('/')
+                        if len(parts) >= 2:
+                            artist_slug = parts[0]
+                            song_slug = parts[1]
+                            
+                            # Clean up artist name
+                            artist_name = artist_slug.replace('-', ' ').title()
+                            
+                            # Clean up song name
+                            # song-name-chords-12345
+                            # Remove ID at end
+                            song_parts = song_slug.split('-')
+                            if song_parts[-1].isdigit():
+                                song_parts.pop()
+                            
+                            # Detect type from slug if possible
+                            type_ = "Tab"
+                            if 'chords' in song_parts:
+                                type_ = "Chords"
+                                # optional: remove 'chords' from name? 
+                                # usually "song-name-chords" -> Song Name
+                            elif 'ukulele' in song_parts:
+                                type_ = "Ukulele"
+                            elif 'bass' in song_parts:
+                                type_ = "Bass"
+                                
+                            song_name = ' '.join(song_parts).title()
+                            
+                            results.append({
+                                'song_name': song_name,
+                                'artist_name': artist_name,
+                                'type': type_,
+                                'rating': 0,
+                                'votes': 0,
+                                'url': link,
+                                'version': 1,
+                                'tab_access_type': 'public'
+                            })
+                    except Exception as e:
+                        print(f"Error parsing link {link}: {e}")
+                        continue
+            
+            return results, None
+            
+        except Exception as e:
+            print(f"DDG Error: {e}")
+            return [], str(e)
+
     def search(self, query, type='Tabs'):
+        # Try DDG first because UG is blocking Vercel
+        print(f"Attempting DDG search for {query}")
+        ddg_results, ddg_error = self.search_ddg(query)
+        if ddg_results:
+            return ddg_results, None
+        
+        print("DDG failed or returned no results, falling back to UG internal search...")
+        
         # Navigate to search query
         # Type 'Tabs' ensures we get chords/tabs mostly
         encoded_query = urllib.parse.quote(query)
@@ -65,6 +163,8 @@ class Scraper:
         data, error = self.fetch_data(url)
         
         if error:
+            # If DDG also failed, return the error from UG (likely 403)
+            # Or maybe combine them?
             return [], error
             
         results = []
