@@ -159,7 +159,7 @@ export default function Song() {
     return (
         <div className="min-h-screen pb-20">
             {/* Sticky Header */}
-            <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-xl border-b border-neutral-800 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-2xl">
+            <div className="sticky top-0 z-10 bg-[#050505] border-b border-neutral-800 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-2xl">
                 <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
 
                     {/* Left: Logo & Back */}
