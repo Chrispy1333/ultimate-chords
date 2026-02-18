@@ -1,7 +1,8 @@
+```
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Menu, LogOut, Library, X } from 'lucide-react';
+import { Menu, LogOut, Library, X, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface NavbarProps {
@@ -10,7 +11,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ className = '', transparent = false }: NavbarProps) {
-    const { user, logout } = useAuth();
+    const { user, logout, signInWithGoogle } = useAuth();
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -23,9 +24,18 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
         }
     };
 
+    const handleSignIn = async () => {
+        try {
+            await signInWithGoogle();
+        } catch (error) {
+            console.error("Failed to sign in", error);
+        }
+    };
+
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between transition-colors ${transparent ? 'bg-transparent' : 'bg-[#050505]/90 backdrop-blur-md border-b border-neutral-800'
-            } ${className}`}>
+        <nav className={`fixed top - 0 left - 0 right - 0 z - 50 px - 6 py - 4 flex items - center justify - between transition - colors ${
+    transparent ? 'bg-transparent' : 'bg-[#050505]/90 backdrop-blur-md border-b border-neutral-800'
+} ${ className } `}>
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 group">
@@ -52,9 +62,13 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
                         </button>
                     </>
                 ) : (
-                    <Link to="/login" className="text-gray-300 hover:text-white transition-colors">
-                        Sign In
-                    </Link>
+                    <button
+                        onClick={handleSignIn}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    >
+                        <LogIn size={18} />
+                        <span>Sign In</span>
+                    </button>
                 )}
             </div>
 
@@ -98,13 +112,16 @@ export function Navbar({ className = '', transparent = false }: NavbarProps) {
                                     </button>
                                 </>
                             ) : (
-                                <Link
-                                    to="/login"
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="px-4 py-3 text-sm text-white hover:bg-neutral-800"
+                                <button
+                                    onClick={() => {
+                                        handleSignIn();
+                                        setIsMenuOpen(false);
+                                    }}
+                                    className="px-4 py-3 text-sm text-white hover:bg-neutral-800 flex items-center gap-3 w-full text-left"
                                 >
+                                    <LogIn size={16} />
                                     Sign In
-                                </Link>
+                                </button>
                             )}
                         </div>
                     </motion.div>
