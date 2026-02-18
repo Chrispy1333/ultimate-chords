@@ -514,7 +514,10 @@ export default function Song() {
             )}
 
             {/* Quick Chat Overlay & Display */}
-            <BroadcastDisplay message={sessionData?.broadcastMessage} isLeader={!!(activeSessionId && isLeader)} />
+            <BroadcastDisplay
+                message={activeSessionId ? sessionData?.broadcastMessage : null}
+                isLeader={!!(activeSessionId && isLeader)}
+            />
 
             {
                 activeSessionId && isLeader && (

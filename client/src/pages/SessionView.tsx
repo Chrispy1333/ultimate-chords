@@ -145,7 +145,7 @@ export default function SessionView() {
             </div>
 
             {/* Quick Chat Overlay & Display */}
-            <BroadcastDisplay message={session?.broadcastMessage} />
+            <BroadcastDisplay message={sessionId ? session?.broadcastMessage : null} />
 
             {isLeader && (
                 <>
