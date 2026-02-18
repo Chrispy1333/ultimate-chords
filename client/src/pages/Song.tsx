@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { ChevronLeft, Minus, Plus, Music, Heart, Menu, X, Library, LogOut } from 'lucide-react';
 import { api, type TabData } from '../services/api';
+import type { SavedSong } from '../services/db';
 import { TabViewer } from '../components/TabViewer';
 import { useTranspose } from '../hooks/useTranspose';
 import { useAuth } from '../contexts/AuthContext';
+import { useSession } from '../contexts/SessionContext';
 import { SaveModal } from '../components/SaveModal';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -15,6 +17,7 @@ export default function Song() {
     const state = location.state as { title?: string; artist?: string } | null;
     const [url, setUrl] = useState(searchParams.get('url'));
     const { user, signInWithGoogle, logout } = useAuth(); // Get user to show save button
+    const { activeSessionId, isLeader } = useSession();
 
     const [data, setData] = useState<TabData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -22,6 +25,7 @@ export default function Song() {
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [savedSongId, setSavedSongId] = useState<string | null>(null);
+    const [savedSongData, setSavedSongData] = useState<SavedSong | null>(null);
     const [useFlats, setUseFlats] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -44,50 +48,138 @@ export default function Song() {
 
     useEffect(() => {
         if (!url) return;
-        setLoading(true);
-        api.getTab(url)
-            .then(setData)
-            .catch(err => setError(err.message))
-            .finally(() => setLoading(false));
-    }, [url]);
 
-    useEffect(() => {
-        if (user && url) {
-            checkSavedStatus();
-        } else {
-            setIsSaved(false);
-            setSavedSongId(null);
-            setUseFlats(false);
-            setSavedSettings(null);
-        }
-    }, [user, url]);
+        const loadSong = async () => {
+            setLoading(true);
+            setError('');
 
-    const checkSavedStatus = async () => {
-        if (!user || !url) return;
-        try {
-            const { dbService } = await import('../services/db');
-            const song = await dbService.getSavedSong(user.uid, url);
-            if (song) {
-                setSavedSongId(song.id);
-                setIsSaved(true);
+            try {
+                let songData: TabData | null = null;
+                let foundSavedSong = null;
 
-                // Apply saved settings
-                const transpose = typeof song.transpose === 'number' ? song.transpose : 0;
-                const flats = song.useFlats !== undefined ? song.useFlats : false;
+                // 1. Try to load from DB if user is logged in
+                if (user) {
+                    try {
+                        const { dbService } = await import('../services/db');
+                        const savedSong = await dbService.getSavedSong(user.uid, url);
 
-                setSemitones(transpose);
-                setUseFlats(flats);
-                setSavedSettings({ transpose, useFlats: flats });
-            } else {
-                setSavedSongId(null);
-                setIsSaved(false);
-                setUseFlats(false);
-                setSavedSettings(null);
+                        if (savedSong) {
+                            foundSavedSong = savedSong;
+
+                            // If we have content, we can skip the scrape!
+                            if (savedSong.content) {
+                                console.log("Loaded song from Library!");
+                                songData = {
+                                    song_name: savedSong.title,
+                                    artist_name: savedSong.artist,
+                                    content: savedSong.content,
+                                    url: savedSong.url,
+                                    key: savedSong.key || '',
+                                    capo: savedSong.capo || '',
+                                    tuning: savedSong.tuning || ''
+                                };
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to check library", e);
+                    }
+                }
+
+                // 2. If not found in DB or valid content missing, fetch from API
+                if (!songData) {
+                    songData = await api.getTab(url);
+                }
+
+                setData(songData);
+
+                // 3. Update saved state based on what we found in DB (if anything)
+                if (foundSavedSong) {
+                    setSavedSongId(foundSavedSong.id);
+                    setSavedSongData(foundSavedSong);
+                    setIsSaved(true);
+
+                    // Apply saved settings
+                    const transpose = typeof foundSavedSong.transpose === 'number' ? foundSavedSong.transpose : 0;
+                    const flats = foundSavedSong.useFlats !== undefined ? foundSavedSong.useFlats : false;
+
+                    setSemitones(transpose);
+                    setUseFlats(flats);
+                    setSavedSettings({ transpose, useFlats: flats });
+                } else {
+                    setSavedSongId(null);
+                    setSavedSongData(null);
+                    setIsSaved(false);
+                    setUseFlats(false);
+                    setSavedSettings(null);
+                }
+
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to load song');
+            } finally {
+                setLoading(false);
             }
-        } catch (e) {
-            console.error("Failed to check saved status", e);
-        }
-    };
+        };
+
+        loadSong();
+    }, [url, user]); // Reload if url changes or user logs in
+
+    // Broadcast to Session when song data or settings change
+    useEffect(() => {
+        if (!activeSessionId || !isLeader || !data) return;
+
+        const broadcast = async () => {
+            try {
+                const { sessionService } = await import('../services/session');
+                // Construct the song data to send
+                // Use saved data if available, otherwise current data
+                const songToSend = {
+                    id: savedSongId || 'temp-' + Date.now(),
+                    userId: user?.uid || 'temp',
+                    folderIds: [],
+                    title: data.song_name || state?.title || '',
+                    artist: data.artist_name || state?.artist || '',
+                    url: url || '',
+                    content: data.content,
+                    transpose: semitones,
+                    useFlats: useFlats,
+                    key: data.key,
+                    capo: data.capo,
+                    tuning: typeof data.tuning === 'string' ? data.tuning : (data.tuning?.name || data.tuning?.value),
+                    createdAt: new Date()
+                };
+
+                // We use 'as any' because session expects SavedSong, but we might be constructing it on the fly
+                // SavedSong interface has required fields like folderIds which we mocked above
+                await sessionService.updateSessionSong(activeSessionId, songToSend as any);
+                console.log("Broadcasted song to session:", songToSend.title);
+            } catch (error) {
+                console.error("Failed to broadcast song", error);
+            }
+        };
+
+        // Debounce slightly to avoid rapid updates
+        const timeout = setTimeout(broadcast, 500);
+        return () => clearTimeout(timeout);
+    }, [activeSessionId, isLeader, data, semitones, useFlats, savedSongId, url, state]);
+
+    // Auto-update saved song with content if missing (Migration/Backfill)
+    useEffect(() => {
+        const backfillContent = async () => {
+            if (isSaved && savedSongId && savedSongData && !savedSongData.content && data?.content) {
+                console.log("Backfilling missing content for saved song...");
+                try {
+                    const { dbService } = await import('../services/db');
+                    await dbService.updateSong(savedSongId, { content: data.content });
+                    // Update local state so we don't loop
+                    setSavedSongData({ ...savedSongData, content: data.content });
+                    console.log("Content backfilled successfully.");
+                } catch (e) {
+                    console.error("Failed to backfill content", e);
+                }
+            }
+        };
+        backfillContent();
+    }, [isSaved, savedSongId, savedSongData, data]);
 
     const handleHeartClick = async () => {
         if (!user) {
@@ -147,6 +239,9 @@ export default function Song() {
         );
     }
 
+    // Check if we are broadcasting
+    const isBroadcasting = activeSessionId && isLeader;
+
     if (error || !data) {
         return (
             <div className="p-10 text-center">
@@ -183,7 +278,13 @@ export default function Song() {
                     </div>
 
                     {/* Center: Title */}
-                    <div className="text-center flex-1 min-w-0 px-2">
+                    <div className="text-center flex-1 min-w-0 px-2 flex flex-col items-center">
+                        {isBroadcasting && (
+                            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-green-400 mb-0.5 animate-pulse">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                Live Session Active
+                            </div>
+                        )}
                         <h1 className="font-bold text-white truncate text-sm md:text-base">{data.song_name || state?.title}</h1>
                         <p className="text-xs text-gray-400 truncate">{data.artist_name || state?.artist}</p>
                     </div>
@@ -335,8 +436,12 @@ export default function Song() {
                         title: data.song_name || state?.title || '',
                         artist: data.artist_name || state?.artist || '',
                         url: url || '',
+                        content: data.content,
                         transpose: semitones,
-                        useFlats: useFlats
+                        useFlats: useFlats,
+                        key: data.key,
+                        capo: data.capo,
+                        tuning: typeof data.tuning === 'string' ? data.tuning : (data.tuning?.name || data.tuning?.value)
                     }}
                     onSave={(id) => {
                         setIsSaved(true);

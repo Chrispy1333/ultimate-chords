@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+
 import { Menu, LogOut, Library, X, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +13,7 @@ interface NavbarProps {
 
 export function Navbar({ className = '', transparent = false }: NavbarProps) {
     const { user, logout, signInWithGoogle } = useAuth();
+
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 

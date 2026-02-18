@@ -28,6 +28,10 @@ export interface SavedSong {
     url: string;
     transpose: number;
     useFlats?: boolean;
+    key?: string;
+    capo?: string | number;
+    tuning?: string;
+    content?: string; // Optional for backward compatibility, but desireable for offline/session use
     createdAt: any;
 }
 
@@ -76,6 +80,11 @@ export const dbService = {
     async updateSongSettings(songId: string, settings: { transpose: number; useFlats: boolean }) {
         const songRef = doc(db!, 'saved_songs', songId);
         await updateDoc(songRef, settings);
+    },
+
+    async updateSong(songId: string, data: Partial<SavedSong>) {
+        const songRef = doc(db!, 'saved_songs', songId);
+        await updateDoc(songRef, data);
     },
 
     async getUserSongs(userId: string) {

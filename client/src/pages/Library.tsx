@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { dbService, type SavedSong, type Folder } from '../services/db';
+
 import { Link } from 'react-router-dom';
-import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X } from 'lucide-react';
+import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X, QrCode, Play, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '../components/Navbar';
+import { useSession } from '../contexts/SessionContext';
+import { SessionQRModal } from '../components/SessionQRModal';
+import { sessionService } from '../services/session';
 
 export default function Library() {
     const { user } = useAuth();
+
+    const { activeSessionId, isLeader, startSession, endSession } = useSession();
+
+    // Cleanup URL param if we had it, but mostly we rely on context now
+    // const sessionId = location.state?.sessionId as string | undefined;
+
     const [songs, setSongs] = useState<SavedSong[]>([]);
     const [folders, setFolders] = useState<Folder[]>([]);
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null); // null = All Songs
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showQRModal, setShowQRModal] = useState(false);
+    const [sessionLoading, setSessionLoading] = useState(false);
 
     // Folder creation
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -21,6 +33,31 @@ export default function Library() {
     // Context Menu
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, songId: string } | null>(null);
     const [showAddToFolderModal, setShowAddToFolderModal] = useState<string | null>(null); // songId
+
+    const handleStartSession = async () => {
+        if (!user) return;
+        setSessionLoading(true);
+        try {
+            const id = await sessionService.createSession(user.uid);
+            startSession(id);
+            setShowQRModal(true);
+        } catch (error) {
+            console.error("Failed to create session", error);
+            alert("Failed to start session");
+        } finally {
+            setSessionLoading(false);
+        }
+    };
+
+    const handleEndSession = () => {
+        if (confirm("End the live session?")) {
+            endSession();
+        }
+    };
+
+    const handleSongClick = async () => {
+        // No special logic needed anymore, global session context handles broadcast when song loads
+    };
 
     useEffect(() => {
         if (user) {
@@ -109,8 +146,43 @@ export default function Library() {
                 {/* Sidebar / Top bar on mobile */}
                 <div className="w-full md:w-64 flex-shrink-0 space-y-6">
                     <div>
-                        <h1 className="text-3xl font-bold text-white mb-2">My Library</h1>
-                        <p className="text-gray-400 text-sm">Organize your collection</p>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h1 className="text-3xl font-bold text-white mb-2">My Library</h1>
+                                <p className="text-gray-400 text-sm">Organize your collection</p>
+                            </div>
+                            {activeSessionId && isLeader ? (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowQRModal(true)}
+                                        className="p-2 text-gray-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
+                                        title="Show QR Code"
+                                    >
+                                        <QrCode size={20} />
+                                    </button>
+                                    <button
+                                        onClick={handleEndSession}
+                                        className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/50 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                                    >
+                                        <Square size={14} className="fill-current" />
+                                        End Session
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleStartSession}
+                                    disabled={sessionLoading}
+                                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-lg shadow-purple-900/20 disabled:opacity-50"
+                                >
+                                    {sessionLoading ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Play size={16} className="fill-current" />
+                                    )}
+                                    <span className="hidden sm:inline">Start Session</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Search Bar */}
@@ -204,7 +276,11 @@ export default function Library() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {filteredSongs.map(song => (
                                 <div key={song.id} className="relative group bg-neutral-900 border border-neutral-800 rounded-xl p-4 hover:border-purple-500/50 transition-colors">
-                                    <Link to={`/song?url=${encodeURIComponent(song.url)}`} className="block">
+                                    <Link
+                                        to={`/song?url=${encodeURIComponent(song.url)}`}
+                                        onClick={handleSongClick}
+                                        className="block"
+                                    >
                                         <h3 className="font-bold text-white truncate mb-1 pr-6">{song.title}</h3>
                                         <p className="text-sm text-gray-400 truncate mb-3">{song.artist}</p>
 
@@ -294,7 +370,18 @@ export default function Library() {
                     />
                 )}
             </AnimatePresence>
-        </div>
+
+
+            {/* Session QR Modal */}
+            <AnimatePresence>
+                {showQRModal && activeSessionId && (
+                    <SessionQRModal
+                        sessionId={activeSessionId}
+                        onClose={() => setShowQRModal(false)}
+                    />
+                )}
+            </AnimatePresence>
+        </div >
     );
 }
 

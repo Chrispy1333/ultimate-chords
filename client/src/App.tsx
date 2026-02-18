@@ -4,19 +4,27 @@ import { AuthProvider } from './contexts/AuthContext';
 import Home from './pages/Home';
 import Song from './pages/Song';
 import Library from './pages/Library';
+import SessionLobby from './pages/SessionLobby';
+import SessionView from './pages/SessionView';
+
+import { SessionProvider } from './contexts/SessionContext';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-[#050505] text-gray-200 font-sans selection:bg-purple-900 selection:text-white relative">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/song/*" element={<Song />} />
-            <Route path="/library" element={<Library />} />
-          </Routes>
-        </div>
-      </Router>
+      <SessionProvider>
+        <Router>
+          <div className="min-h-screen bg-[#050505] text-gray-200 font-sans selection:bg-purple-900 selection:text-white relative">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/song" element={<Song />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/session/lobby" element={<SessionLobby />} />
+              <Route path="/session/:sessionId" element={<SessionView />} />
+            </Routes>
+          </div>
+        </Router>
+      </SessionProvider>
     </AuthProvider>
   );
 }

@@ -10,8 +10,12 @@ interface SaveModalProps {
         title: string;
         artist: string;
         url: string;
+        content?: string;
         transpose: number;
         useFlats?: boolean;
+        key?: string;
+        capo?: string | number;
+        tuning?: string;
     };
     onSave?: (id: string) => void;
 }
@@ -70,8 +74,12 @@ export function SaveModal({ isOpen, onClose, songData, onSave }: SaveModalProps)
                 title: songData.title,
                 artist: songData.artist,
                 url: songData.url,
+                content: songData.content,
                 transpose: songData.transpose,
                 useFlats: songData.useFlats,
+                key: songData.key,
+                capo: songData.capo,
+                tuning: songData.tuning,
                 folderIds: selectedFolderIds
             });
             onClose();
