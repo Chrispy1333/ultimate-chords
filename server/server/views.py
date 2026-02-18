@@ -9,35 +9,50 @@ scraper = Scraper()
 def index():
     return 'Ultimate Chords API'
 
+@api.errorhandler(Exception)
+def handle_exception(e):
+    # Print exception for logs
+    import traceback
+    traceback.print_exc()
+    return jsonify({'error': f"Internal Server Error: {str(e)}"}), 500
+
 @api.route('/search')
 def search():
-    query = request.args.get('q')
-    if not query:
-        return jsonify({'error': 'Missing query parameter q'}), 400
+    try:
+        query = request.args.get('q')
+        if not query:
+            return jsonify({'error': 'Missing query parameter q'}), 400
+            
+        results, error = scraper.search(query)
         
-    results, error = scraper.search(query)
-    
-    if error:
-        print(f"Search error for {query}: {error}")
-        # Return empty list but with error in headers or a specific error object?
-        # For now, to solve the mystery, let's return the error in the body if we can
-        return jsonify({'error': error, 'results': []}), 500
-        
-    return jsonify(results)
+        if error:
+            print(f"Search error for {query}: {error}")
+            return jsonify({'error': error, 'results': []}), 500
+            
+        return jsonify(results)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f"Search crash: {str(e)}"}), 500
 
 @api.route('/tab')
 def tab():
-    url = request.args.get('url')
-    if not url:
-        return jsonify({'error': 'Missing url parameter'}), 400
+    try:
+        url = request.args.get('url')
+        if not url:
+            return jsonify({'error': 'Missing url parameter'}), 400
 
-    tab_data, error = scraper.get_tab(url)
-    
-    if error:
-        print(f"Tab error for {url}: {error}")
-        return jsonify({'error': error}), 500
+        tab_data, error = scraper.get_tab(url)
         
-    if not tab_data:
-        return jsonify({'error': 'Failed to fetch tab data'}), 404
-        
-    return jsonify(tab_data)
+        if error:
+            print(f"Tab error for {url}: {error}")
+            return jsonify({'error': error}), 500
+            
+        if not tab_data:
+            return jsonify({'error': 'Failed to fetch tab data'}), 404
+            
+        return jsonify(tab_data)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f"Tab crash: {str(e)}"}), 500
