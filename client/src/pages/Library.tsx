@@ -4,6 +4,7 @@ import { dbService, type SavedSong, type Folder } from '../services/db';
 import { Link } from 'react-router-dom';
 import { FolderPlus, Trash2, Search, MoreVertical, FolderInput, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Navbar } from '../components/Navbar';
 
 export default function Library() {
     const { user } = useAuth();
@@ -103,6 +104,7 @@ export default function Library() {
 
     return (
         <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
+            <Navbar />
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar / Top bar on mobile */}
                 <div className="w-full md:w-64 flex-shrink-0 space-y-6">

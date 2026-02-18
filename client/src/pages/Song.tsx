@@ -1,11 +1,13 @@
+```typescript
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, Minus, Plus, Music, Heart } from 'lucide-react';
+import { useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { ChevronLeft, Minus, Plus, Music, Heart, Menu, X, Library, LogOut } from 'lucide-react';
 import { api, type TabData } from '../services/api';
 import { TabViewer } from '../components/TabViewer';
 import { useTranspose } from '../hooks/useTranspose';
 import { useAuth } from '../contexts/AuthContext';
 import { SaveModal } from '../components/SaveModal';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Song() {
     const [searchParams] = useSearchParams();
@@ -13,7 +15,7 @@ export default function Song() {
     const location = useLocation();
     const state = location.state as { title?: string; artist?: string } | null;
     const [url, setUrl] = useState(searchParams.get('url'));
-    const { user, signInWithGoogle } = useAuth(); // Get user to show save button
+    const { user, signInWithGoogle, signOut } = useAuth(); // Get user to show save button
 
     const [data, setData] = useState<TabData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -22,6 +24,7 @@ export default function Song() {
     const [isSaved, setIsSaved] = useState(false);
     const [savedSongId, setSavedSongId] = useState<string | null>(null);
     const [useFlats, setUseFlats] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // Track original saved settings to detect changes
     const [savedSettings, setSavedSettings] = useState<{ transpose: number; useFlats: boolean } | null>(null);
@@ -128,6 +131,15 @@ export default function Song() {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await signOut();
+            navigate('/');
+        } catch (error) {
+            console.error("Failed to sign out", error);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex h-screen items-center justify-center">
@@ -149,25 +161,50 @@ export default function Song() {
         <div className="min-h-screen pb-20">
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-xl border-b border-neutral-800 px-4 py-3 shadow-2xl">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
+                <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-4">
+                    
+                    {/* Left: Logo & Back */}
+                    <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                         {/* Logo */}
+                        <Link to="/" className="flex items-center gap-2 group">
+                            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center transform group-hover:scale-105 transition-transform">
+                                <span className="font-bold text-white text-lg">U</span>
+                            </div>
+                            <span className="font-bold text-lg text-white hidden xl:block">Ultimate Chords</span>
+                        </Link>
+                        
+                        <div className="h-6 w-px bg-white/10 hidden md:block"></div>
 
-                    <div className="text-center">
-                        <h1 className="font-bold text-white truncate max-w-[200px] md:max-w-md">{data.song_name || state?.title}</h1>
-                        <p className="text-xs text-gray-400">{data.artist_name || state?.artist}</p>
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2 hover:bg-white/10 rounded-full transition-colors order-first md:order-last"
+                        >
+                            <ChevronLeft className="w-6 h-6" />
+                        </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    {/* Center: Title */}
+                    <div className="text-center flex-1 min-w-0 px-2">
+                        <h1 className="font-bold text-white truncate text-sm md:text-base">{data.song_name || state?.title}</h1>
+                        <p className="text-xs text-gray-400 truncate">{data.artist_name || state?.artist}</p>
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {/* Desktop Library Link */}
+                        {user && (
+                            <Link to="/library" className="hidden lg:flex items-center gap-2 text-gray-400 hover:text-white px-2 py-1 transition-colors text-sm font-medium">
+                                <Library size={16} />
+                                <span>Library</span>
+                            </Link>
+                        )}
+                        
                         {user && (
                             <button
                                 onClick={handleHeartClick}
-                                className={`p-2 hover:bg-white/10 rounded-full transition-colors ${isSaved && !isModified ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'
-                                    }`}
+                                className={`p - 2 hover: bg - white / 10 rounded - full transition - colors ${
+    isSaved && !isModified ? 'text-purple-500' : 'text-gray-400 hover:text-purple-400'
+} `}
                                 title={
                                     isSaved
                                         ? (isModified ? "Update Saved Settings" : "Saved")
@@ -175,7 +212,7 @@ export default function Song() {
                                 }
                             >
                                 <Heart
-                                    className={`w-6 h-6 ${isSaved && !isModified ? 'fill-purple-500' : ''}`}
+                                    className={`w - 6 h - 6 ${ isSaved && !isModified ? 'fill-purple-500' : '' } `}
                                 />
                             </button>
                         )}
@@ -183,24 +220,25 @@ export default function Song() {
                         {/* Use Flats Toggle */}
                         <button
                             onClick={() => setUseFlats(!useFlats)}
-                            className={`h-9 w-9 flex items-center justify-center rounded-lg border text-sm font-bold font-mono transition-colors ${useFlats
-                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
-                                : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
-                                }`}
+                            className={`h - 9 w - 9 flex items - center justify - center rounded - lg border text - sm font - bold font - mono transition - colors ${
+    useFlats
+        ? 'bg-purple-500/20 text-purple-300 border-purple-500/50'
+        : 'bg-neutral-900 text-gray-400 border-neutral-800 hover:text-white'
+} `}
                             title="Use Flats"
                         >
                             b
                         </button>
 
-                        <div className="flex items-center gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+                        <div className="flex items-center gap-1 md:gap-2 bg-neutral-900 rounded-lg p-1 border border-neutral-800">
                             <button
                                 onClick={() => setSemitones(s => s - 1)}
                                 className="p-1.5 hover:bg-white/10 rounded-md text-gray-400 hover:text-white transition-colors"
                             >
                                 <Minus className="w-4 h-4" />
                             </button>
-                            <span className={`text-sm font-mono font-bold w-8 text-center ${semitones !== 0 ? 'text-purple-400' : 'text-gray-500'}`}>
-                                {semitones > 0 ? `+${semitones}` : semitones}
+                            <span className={`text - sm font - mono font - bold w - 6 md: w - 8 text - center ${ semitones !== 0 ? 'text-purple-400' : 'text-gray-500' } `}>
+                                {semitones > 0 ? `+ ${ semitones } ` : semitones}
                             </span>
                             <button
                                 onClick={() => setSemitones(s => s + 1)}
@@ -209,8 +247,61 @@ export default function Song() {
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
+                        
+                         {/* Mobile Menu Button - Show on small screens OR if user is signed in (for logout) */}
+                         <button 
+                            className="lg:hidden text-white p-2 rounded-full hover:bg-white/10 ml-1"
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        >
+                            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        </button>
                     </div>
                 </div>
+
+                {/* Mobile Menu Dropdown */}
+                <AnimatePresence>
+                    {isMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                            className="absolute top-full right-4 mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden lg:hidden"
+                        >
+                            <div className="flex flex-col py-2">
+                                {user ? (
+                                    <>
+                                        <Link 
+                                            to="/library" 
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="px-4 py-3 text-sm text-gray-300 hover:bg-neutral-800 hover:text-white flex items-center gap-3"
+                                        >
+                                            <Library size={16} className="text-purple-400" />
+                                            My Library
+                                        </Link>
+                                        <button 
+                                            onClick={() => {
+                                                handleLogout();
+                                                setIsMenuOpen(false);
+                                            }}
+                                            className="px-4 py-3 text-sm text-gray-400 hover:bg-neutral-800 hover:text-white flex items-center gap-3 text-left w-full"
+                                        >
+                                            <LogOut size={16} />
+                                            Log Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <Link 
+                                        to="/login"
+                                        onClick={() => setIsMenuOpen(false)}
+                                        className="px-4 py-3 text-sm text-white hover:bg-neutral-800"
+                                    >
+                                        Sign In
+                                    </Link>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Content */}
