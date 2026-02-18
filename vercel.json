@@ -18,8 +18,16 @@
             "destination": "/api/index.py"
         },
         {
+            "source": "/assets/(.*)",
+            "destination": "/client/assets/$1"
+        },
+        {
+            "source": "/(.*)\\.(.*)",
+            "destination": "/client/$1.$2"
+        },
+        {
             "source": "/(.*)",
-            "destination": "/client/$1"
+            "destination": "/client/index.html"
         }
     ]
 }
