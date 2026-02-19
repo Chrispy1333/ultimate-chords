@@ -10,17 +10,44 @@ class Scraper:
             }
         )
 
+    def fetch_with_scrape_do(self, target_url):
+        token = "cdf0ed79db184c918ffc2336ccb94b78ceb789c7684"
+        encoded_url = urllib.parse.quote(target_url)
+        scrape_do_url = f"http://api.scrape.do?token={token}&url={encoded_url}"
+        
+        try:
+            print(f"Attempting Scrape.do fetch for {target_url}")
+            # Use a specialized timeout since proxies can be slow
+            response = self.scraper.get(scrape_do_url, timeout=60)
+            if response.status_code != 200:
+                print(f"Scrape.do failed with status {response.status_code}")
+                return None
+            return response
+        except Exception as e:
+            print(f"Scrape.do error: {e}")
+            return None
+
     def fetch_data(self, url):
         try:
-            print(f"Fetching {url}")
-            response = self.scraper.get(url)
+            # Method 1: Try Scrape.do first
+            response = self.fetch_with_scrape_do(url)
+
+            # Method 2: Fallback to direct fetch if Scrape.do failed
+            if not response:
+                print(f"Falling back to direct fetch for {url}")
+                try:
+                    response = self.scraper.get(url)
+                except Exception as e:
+                    print(f"Direct fetch error: {e}")
+                    return None, str(e)
+
             if response.status_code != 200:
                 print(f"Failed to fetch {url}: {response.status_code}")
                 return None, f"HTTP {response.status_code}"
             
             data = None
             
-            # Method 1: Try js-store div (most reliable)
+            # Parsing Logic (Method A): Try js-store div (most reliable)
             try:
                 from bs4 import BeautifulSoup
                 soup = BeautifulSoup(response.content, 'html.parser')
@@ -35,7 +62,7 @@ class Scraper:
             except Exception as e:
                 print(f"Error parsing js-store: {e}")
             
-            # Method 2: Fallback to regex/split on window.UGAPP.store.page
+            # Parsing Logic (Method B): Fallback to regex/split on window.UGAPP.store.page
             if not data and 'window.UGAPP.store.page = ' in response.text:
                 try:
                     json_str = response.text.split('window.UGAPP.store.page = ')[1].split(';')[0]
